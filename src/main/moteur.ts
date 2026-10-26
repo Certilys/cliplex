@@ -124,7 +124,7 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
 
     // 2. Montage par Claude Code, dans le dossier du montage, avec les instructions Cliplex.
     p = modifierProjet(id, { etape: 'claude' })
-    copyFileSync(join(moteur, 'claude', 'CLAUDE.md'), join(montage, 'CLAUDE.md'))
+    copyFileSync(join(moteur, 'claude', 'instructions.md'), join(montage, 'CLAUDE.md'))
     writeFileSync(join(montage, 'consignes.txt'), consignes(p))
     writeFileSync(join(montage, 'rendre-brouillon.sh'), `#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "${join(moteur, 'outils', 'rendre.sh')}" "$(dirname "$0")" --brouillon\n`, { mode: 0o755 })
     journal('claude', 'Claude Code lit le rush et écrit le montage.')
