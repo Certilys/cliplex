@@ -85,6 +85,20 @@ const DEFINITIONS: Definition[] = [
     }
   },
   {
+    id: 'debruiteur',
+    nom: 'Débruiteur de voix',
+    role: 'Un petit réseau de neurones (RNNoise) qui retire le souffle et les bruits de fond de ta voix, sans la déformer.',
+    taille: '≈ 300 Ko',
+    commande: () => {
+      const d = join(dossierOutils(), 'modeles')
+      return `mkdir -p "${d}" && curl -L --fail -sS -o "${d}/sh.rnnn" https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn`
+    },
+    detecter: async () => {
+      const f = join(dossierOutils(), 'modeles', 'sh.rnnn')
+      return existsSync(f) && statSync(f).size > 200e3 ? { version: 'somnolent-hogwash', chemin: f } : null
+    }
+  },
+  {
     id: 'python',
     nom: 'Python et numpy',
     role: 'Repère les silences et les moments où tu parles, pour caler les sous-titres à la milliseconde.',
