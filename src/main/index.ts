@@ -1,13 +1,15 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { writeFileSync } from 'fs'
-import { join } from 'path'
+import { join, normalize } from 'path'
+import { pathToFileURL } from 'url'
 import type { LigneJournal, Projet, Reglages } from '../shared/types'
 import { connecterClaude, etatClaude } from './claude'
 import { commandeTerminal, installerOutil, listerOutils } from './outils'
 import { copierRushs, creerProjet, dossierProjet, listerProjets, modifierProjet } from './projets'
 import { avecSousDossier, ecrireReglages, lireReglages } from './reglages'
 import { ouvrirTerminal } from './terminal'
+import { arreterMontage, lancerMontage } from './moteur'
 
 let fenetre: BrowserWindow | null = null
 
@@ -93,13 +95,33 @@ function brancherIpc(): void {
     return r.canceled ? modifierProjet(id, {}) : copierRushs(id, r.filePaths)
   })
   ipcMain.handle('projets:ouvrirDossier', (_e, id: string) => shell.openPath(dossierProjet(id)))
+
+  ipcMain.handle('montage:lancer', (_e, id: string) =>
+    lancerMontage(id, (etape, texte) => fenetre?.webContents.send('montage:journal', { id, etape, texte }))
+  )
+  ipcMain.handle('montage:arreter', (_e, id: string) => arreterMontage(id))
 }
 
+// Lecture des vidéos d'un projet par l'interface : cliplex-fichier://projet/<id>/<chemin>,
+// limitée au dossier de ce projet.
+function brancherProtocole(): void {
+  protocol.handle('cliplex-fichier', (requete) => {
+    const url = new URL(requete.url)
+    const [id, ...reste] = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
+    const racine = dossierProjet(id)
+    const chemin = normalize(join(racine, ...reste))
+    if (!chemin.startsWith(racine + '/')) return new Response('Interdit', { status: 403 })
+    return net.fetch(pathToFileURL(chemin).toString(), { headers: requete.headers })
+  })
+}
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'cliplex-fichier', privileges: { stream: true, supportFetchAPI: true, standard: true, secure: true } }])
 app.setName('Cliplex')
 // Développement : données isolées (réglages, état de l'accueil) pour les essais.
 if (is.dev && process.env.CLIPLEX_DONNEES) app.setPath('userData', process.env.CLIPLEX_DONNEES)
 app.whenReady().then(() => {
   brancherIpc()
+  brancherProtocole()
   creerFenetre()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) creerFenetre()

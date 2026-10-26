@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, LigneJournal } from '../shared/types'
+import type { Api, LigneJournal, LigneMontage } from '../shared/types'
 
 const api: Api = {
   reglages: {
@@ -25,7 +25,17 @@ const api: Api = {
     creer: (titre, format) => ipcRenderer.invoke('projets:creer', titre, format),
     modifier: (id, partiel) => ipcRenderer.invoke('projets:modifier', id, partiel),
     ajouterRushs: (id) => ipcRenderer.invoke('projets:ajouterRushs', id),
-    ouvrirDossier: (id) => ipcRenderer.invoke('projets:ouvrirDossier', id)
+    ouvrirDossier: (id) => ipcRenderer.invoke('projets:ouvrirDossier', id),
+    adresse: (id, fichier) => `cliplex-fichier://projet/${encodeURIComponent(id)}/${fichier.split('/').map(encodeURIComponent).join('/')}`
+  },
+  montage: {
+    lancer: (id) => ipcRenderer.invoke('montage:lancer', id),
+    arreter: (id) => ipcRenderer.invoke('montage:arreter', id),
+    journal: (rappel) => {
+      const ecoute = (_e: unknown, ligne: LigneMontage) => rappel(ligne)
+      ipcRenderer.on('montage:journal', ecoute)
+      return () => ipcRenderer.removeListener('montage:journal', ecoute)
+    }
   }
 }
 

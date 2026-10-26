@@ -1,7 +1,8 @@
-import { existsSync, statSync } from 'fs'
+import { existsSync, readFileSync, statSync } from 'fs'
 import { join } from 'path'
 import type { LigneJournal, Outil } from '../shared/types'
 import { lancer, suivre } from './environnement'
+import { dossierMoteur, dossierStudio } from './moteur'
 import { dossierOutils } from './reglages'
 
 export const MODELE_WHISPER = 'ggml-large-v3-turbo-q5_0.bin'
@@ -110,6 +111,26 @@ const DEFINITIONS: Definition[] = [
     detecter: async () => {
       const r = await lancer(pythonOutils(), ['-c', 'import numpy; print(numpy.__version__)'])
       return r.ok ? { version: `numpy ${r.sortie}`, chemin: pythonOutils() } : null
+    }
+  },
+  {
+    id: 'studio',
+    nom: "Moteur d'animation (Remotion)",
+    role: 'Dessine chaque image de ta vidéo : plans, zooms, sous-titres animés, textes. Il télécharge aussi le navigateur qui sert au rendu.',
+    taille: '≈ 300 Mo',
+    commande: () => {
+      const src = join(dossierMoteur(), 'studio')
+      const d = dossierStudio()
+      return `mkdir -p "${d}" && cp -R "${src}/src" "${src}/package.json" "${src}/remotion.config.ts" "${src}/tsconfig.json" "${d}/" && cd "${d}" && npm install --no-audit --no-fund && npx remotion browser ensure`
+    },
+    detecter: async () => {
+      const d = dossierStudio()
+      const installe = join(d, 'node_modules', 'remotion', 'package.json')
+      if (!existsSync(installe)) return null
+      // Une nouvelle version du moteur livrée avec l'app demande une réinstallation.
+      const livre = readFileSync(join(dossierMoteur(), 'studio', 'package.json'), 'utf8')
+      if (readFileSync(join(d, 'package.json'), 'utf8') !== livre) return null
+      return { version: JSON.parse(readFileSync(installe, 'utf8')).version, chemin: d }
     }
   },
   {

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import type { Projet } from '../../../shared/types'
+import { useEffect, useRef, useState } from 'react'
+import type { EtapeMontage, LigneMontage, Projet } from '../../../shared/types'
 import { BarreHaut } from '../composants/Coquille'
 import { Icone } from '../composants/Icone'
 import { Pastille } from './Bienvenue'
@@ -118,8 +118,35 @@ function Vide({ onCreer }: { onCreer: () => void }) {
   )
 }
 
+const ETAPES: { id: EtapeMontage; nom: string }[] = [
+  { id: 'preparation', nom: 'Préparation du rush' },
+  { id: 'claude', nom: 'Montage par Claude' },
+  { id: 'rendu', nom: 'Rendu final' }
+]
+
 function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => void }) {
   const [consignes, setConsignes] = useState(projet.consignes)
+  const [lignes, setLignes] = useState<LigneMontage[]>([])
+  const [etape, setEtape] = useState<EtapeMontage | undefined>(projet.etape)
+  const enCours = projet.statut === 'montage'
+
+  useEffect(
+    () =>
+      window.cliplex.montage.journal((l) => {
+        if (l.id !== projet.id) return
+        setEtape(l.etape)
+        setLignes((x) => [...x.slice(-300), l])
+      }),
+    [projet.id]
+  )
+
+  const lancer = async () => {
+    await modifier({ consignes })
+    setLignes([])
+    setEtape('preparation')
+    onChange({ ...projet, consignes, statut: 'montage', etape: 'preparation', erreur: undefined })
+    onChange(await window.cliplex.montage.lancer(projet.id))
+  }
   const modifier = async (partiel: Partial<Projet>) => onChange(await window.cliplex.projets.modifier(projet.id, partiel))
   const ajouter = (s: string) => {
     const c = consignes.trim() ? `${consignes.trim()}\n${s}.` : `${s}.`
@@ -138,7 +165,13 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
               </button>
             ))}
           </div>
-          <Cadre format={projet.format} vide={!projet.rushs.length} />
+          {enCours || (projet.erreur && lignes.length) ? (
+            <Progression etape={etape} lignes={lignes} />
+          ) : projet.video ? (
+            <video key={projet.video + projet.majLe} src={window.cliplex.projets.adresse(projet.id, projet.video)} controls className="max-h-[78%] max-w-[86%] rounded-[14px] bg-black" />
+          ) : (
+            <Cadre format={projet.format} vide={!projet.rushs.length} />
+          )}
         </div>
         <div className="flex h-12 flex-none items-center justify-center border-t border-white/5 text-[12px] text-[#8C879A]">
           {projet.rushs.length ? `${projet.rushs.length} rush${projet.rushs.length > 1 ? 's' : ''} · ${FORMATS.find((f) => f.id === projet.format)?.usage}` : 'Ajoute un rush pour voir l’aperçu'}
@@ -179,12 +212,48 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
           </div>
         </div>
         <div className="flex flex-col gap-2 border-t border-bord-2 px-5 py-3.5">
-          <button className="btn-violet h-10" disabled title="Le moteur de montage arrive à la prochaine étape du développement.">
-            Lancer le montage
-          </button>
-          <small className="text-center text-[11.5px] text-doux">{projet.rushs.length ? 'Moteur de montage en cours d’intégration' : 'Ajoute d’abord un rush'}</small>
+          {projet.erreur && !enCours && <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700">{projet.erreur}</p>}
+          {enCours ? (
+            <button className="btn-blanc h-10" onClick={() => window.cliplex.montage.arreter(projet.id)}>
+              Arrêter le montage
+            </button>
+          ) : (
+            <button className="btn-violet h-10" disabled={!projet.rushs.length} onClick={lancer}>
+              {projet.video ? 'Refaire le montage' : 'Lancer le montage'}
+            </button>
+          )}
+          <small className="text-center text-[11.5px] text-doux">
+            {!projet.rushs.length ? 'Ajoute d’abord un rush' : enCours ? 'Tu peux continuer à utiliser Cliplex pendant ce temps' : 'Préparation, montage par Claude, puis rendu'}
+          </small>
         </div>
       </aside>
+    </div>
+  )
+}
+
+function Progression({ etape, lignes }: { etape?: EtapeMontage; lignes: LigneMontage[] }) {
+  const bas = useRef<HTMLDivElement>(null)
+  useEffect(() => bas.current?.scrollIntoView({ block: 'end' }), [lignes])
+  const rang = ETAPES.findIndex((e) => e.id === etape)
+  return (
+    <div className="flex h-[78%] w-[min(620px,86%)] flex-col rounded-[14px] border border-white/10 bg-nuit-2 p-5 text-white">
+      <div className="flex gap-2">
+        {ETAPES.map((e, i) => (
+          <div key={e.id} className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium ${i === rang ? 'bg-white/10 text-white' : i < rang ? 'text-[#5FD39A]' : 'text-[#6E6880]'}`}>
+            {i < rang ? <Icone nom="coche" taille={14} /> : i === rang ? <span className="tourne h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-violet-clair" /> : <span className="h-3.5 w-3.5 rounded-full border border-white/20" />}
+            {e.nom}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex-1 overflow-y-auto font-mono text-[11.5px] leading-[1.7] text-[#B4AFC1] select-text">
+        {lignes.length === 0 && <div className="text-[#6E6880]">Démarrage…</div>}
+        {lignes.map((l, i) => (
+          <div key={i} className={l.etape === 'claude' && !l.texte.startsWith('{') ? 'text-white' : ''}>
+            {l.texte}
+          </div>
+        ))}
+        <div ref={bas} />
+      </div>
     </div>
   )
 }

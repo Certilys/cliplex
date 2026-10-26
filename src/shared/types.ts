@@ -49,6 +49,19 @@ export interface Projet {
   creeLe: string
   majLe: string
   statut: 'brouillon' | 'pret' | 'montage' | 'monte'
+  /** Étape en cours pendant un montage. */
+  etape?: EtapeMontage
+  /** Vidéo finale, relative au dossier du projet. */
+  video?: string
+  erreur?: string
+}
+
+export type EtapeMontage = 'preparation' | 'claude' | 'rendu' | 'fini'
+
+export interface LigneMontage {
+  id: string
+  etape: EtapeMontage
+  texte: string
 }
 
 export interface Api {
@@ -72,5 +85,12 @@ export interface Api {
     modifier(id: string, partiel: Partial<Projet>): Promise<Projet>
     ajouterRushs(id: string): Promise<Projet>
     ouvrirDossier(id: string): Promise<void>
+    /** Adresse lisible par la balise <video> pour un fichier du projet. */
+    adresse(id: string, fichier: string): string
+  }
+  montage: {
+    lancer(id: string): Promise<Projet>
+    arreter(id: string): Promise<void>
+    journal(rappel: (ligne: LigneMontage) => void): () => void
   }
 }
