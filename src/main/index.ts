@@ -6,7 +6,7 @@ import type { LigneJournal, Projet, Reglages } from '../shared/types'
 import { connecterClaude, etatClaude } from './claude'
 import { commandeTerminal, installerOutil, listerOutils } from './outils'
 import { copierRushs, creerProjet, dossierProjet, listerProjets, modifierProjet } from './projets'
-import { ecrireReglages, lireReglages } from './reglages'
+import { avecSousDossier, ecrireReglages, lireReglages } from './reglages'
 import { ouvrirTerminal } from './terminal'
 
 let fenetre: BrowserWindow | null = null
@@ -62,7 +62,7 @@ function brancherIpc(): void {
       buttonLabel: 'Choisir ce dossier',
       properties: ['openDirectory', 'createDirectory']
     })
-    return r.canceled ? null : r.filePaths[0]
+    return r.canceled ? null : avecSousDossier(r.filePaths[0])
   })
 
   ipcMain.handle('outils:lister', () => listerOutils())

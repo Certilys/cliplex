@@ -154,9 +154,9 @@ function EtapeDossier({ dossier, onChange }: { dossier: string | null; onChange:
         <div className="pl-4">projets/<span className="text-doux">   une vidéo = un dossier</span></div>
         <div className="pl-8">ma-video/rushs/<span className="text-doux">   tes vidéos brutes</span></div>
         <div className="pl-8">ma-video/montage/<span className="text-doux">   versions, sous-titres, plan</span></div>
-        <div className="pl-4">.outils/<span className="text-doux">   modèle de transcription, Python</span></div>
       </div>
-      <p className="mt-3 text-[12.5px] text-muet">Ce sont des fichiers normaux : tu peux les ouvrir, les copier ou les sauvegarder comme tu veux.</p>
+      <p className="mt-3 text-[12.5px] leading-normal text-muet">Ce sont des fichiers normaux : tu peux les ouvrir, les copier ou les sauvegarder comme tu veux. Si tu choisis un dossier comme le Bureau, Cliplex crée dedans un sous-dossier « Cliplex » pour ne rien éparpiller.</p>
+      <p className="mt-1.5 text-[12.5px] leading-normal text-muet">Les outils (modèle de transcription, Python) vont à part, dans <code className="font-mono text-[12px] text-encre-2">~/Library/Application Support/Cliplex/outils</code>.</p>
     </>
   )
 }

@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { basename, join } from 'path'
 import type { Reglages } from '../shared/types'
 
 const DEFAUT: Reglages = { accueilFini: false, objectifs: [], dossier: null }
@@ -12,7 +12,8 @@ function fichier(): string {
 
 export function lireReglages(): Reglages {
   try {
-    return { ...DEFAUT, ...JSON.parse(readFileSync(fichier(), 'utf8')) }
+    const r: Reglages = { ...DEFAUT, ...JSON.parse(readFileSync(fichier(), 'utf8')) }
+    return { ...r, dossier: r.dossier ? avecSousDossier(r.dossier) : null }
   } catch {
     return { ...DEFAUT }
   }
@@ -25,16 +26,28 @@ export function ecrireReglages(partiel: Partial<Reglages>): Reglages {
   return r
 }
 
-/** Dossier de travail choisi, ou ~/Cliplex par défaut. Créé au besoin. */
+/**
+ * Cliplex range tout dans un sous-dossier « Cliplex » du dossier choisi,
+ * pour ne jamais éparpiller ses fichiers sur le Bureau ou dans Documents.
+ */
+export function avecSousDossier(choisi: string): string {
+  return basename(choisi).toLowerCase() === 'cliplex' ? choisi : join(choisi, 'Cliplex')
+}
+
+/** Dossier de travail (projets, rushs, montages), ~/Cliplex par défaut. Créé au besoin. */
 export function dossierTravail(): string {
-  const d = lireReglages().dossier ?? join(homedir(), 'Cliplex')
+  const r = lireReglages().dossier
+  const d = r ? avecSousDossier(r) : join(homedir(), 'Cliplex')
   if (!existsSync(d)) mkdirSync(d, { recursive: true })
   return d
 }
 
-/** Outils installés par Cliplex lui-même (modèle de transcription, Python). */
+/**
+ * Outils installés par Cliplex lui-même (modèle de transcription, Python),
+ * dans le dossier de l'app : ~/Library/Application Support/Cliplex/outils.
+ */
 export function dossierOutils(): string {
-  const d = join(dossierTravail(), '.outils')
+  const d = join(app.getPath('userData'), 'outils')
   if (!existsSync(d)) mkdirSync(d, { recursive: true })
   return d
 }

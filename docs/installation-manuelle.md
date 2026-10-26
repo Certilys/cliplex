@@ -15,16 +15,16 @@ Cliplex installe ces outils depuis son écran de premier lancement. Si tu préf�
 Modèle de transcription :
 
 ```bash
-mkdir -p <dossier>/.outils/modeles
-curl -L --fail -o <dossier>/.outils/modeles/ggml-large-v3-turbo-q5_0.bin \
+mkdir -p <outils>/modeles
+curl -L --fail -o <outils>/modeles/ggml-large-v3-turbo-q5_0.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
 ```
 
 Python et numpy, dans un environnement isolé qui ne touche pas au Python du système :
 
 ```bash
-python3 -m venv <dossier>/.outils/python
-<dossier>/.outils/python/bin/pip install --upgrade numpy
+python3 -m venv <outils>/python
+<outils>/python/bin/pip install --upgrade numpy
 ```
 
 Connexion de Claude Code à ton compte :
