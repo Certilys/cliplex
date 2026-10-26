@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-size: 13px;
+  background: theme('colors.fond');
+  color: theme('colors.encre.DEFAULT');
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+/* Zone de déplacement de la fenêtre (barre de titre masquée sur macOS). */
+.glisser {
+  -webkit-app-region: drag;
+}
+.glisser button,
+.glisser input,
+.pas-glisser {
+  -webkit-app-region: no-drag;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-noir {
+    @apply btn bg-encre text-white hover:bg-encre-2;
+  }
+  .btn-violet {
+    @apply btn bg-violet text-white hover:bg-violet-fonce;
+  }
+  .btn-blanc {
+    @apply btn border border-bord bg-white text-encre hover:bg-fond;
+  }
+  .btn-fantome {
+    @apply btn text-muet hover:bg-black/5 hover:text-encre;
+  }
+  .carte {
+    @apply rounded-xl border border-bord bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)];
+  }
+  .libelle {
+    @apply mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-muet;
+  }
+  .surtitre {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-violet;
+  }
+  .champ {
+    @apply w-full rounded-lg border border-bord bg-white px-3 py-2 text-[13px] text-encre outline-none placeholder:text-doux focus:border-violet-clair focus:ring-[3px] focus:ring-violet-fond;
+  }
+}
+
+@keyframes tourner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tourne {
+  animation: tourner 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
