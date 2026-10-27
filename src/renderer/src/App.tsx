@@ -3,15 +3,15 @@ import type { Projet, Reglages } from '../../shared/types'
 import { BarreHaut, Coquille, type Page } from './composants/Coquille'
 import { Icone } from './composants/Icone'
 import { Bienvenue } from './pages/Bienvenue'
+import { Inspirations } from './pages/Inspirations'
 import { Montage } from './pages/Montage'
+import { MonStyle } from './pages/Style'
 
 const A_VENIR: Partial<Record<Page, { titre: string; texte: string }>> = {
   idees: { titre: 'Idées et scripts', texte: 'Tes idées par thème, ta trame dictée à la voix et mise en forme en script.' },
   planning: { titre: 'Planning', texte: 'Ton calendrier de publication, avec les créneaux que tu choisis.' },
   tournage: { titre: 'Tournage', texte: 'Le prompteur sur ton téléphone, guidé par ta voix, et des fonds d’écran pour ton décor.' },
-  inspirations: { titre: 'Inspirations', texte: 'Tes vidéos et images de référence : Cliplex en tire ton style de montage.' },
-  sons: { titre: 'Sons et musiques', texte: 'Une banque de sons libres de droits, et les tiens.' },
-  modeles: { titre: 'Modèles', texte: 'Tes styles de montage enregistrés, réutilisables en un clic.' }
+  sons: { titre: 'Sons et musiques', texte: 'Une banque de sons libres de droits, et les tiens.' }
 }
 
 export default function App() {
@@ -42,6 +42,8 @@ export default function App() {
     <Coquille page={page} onPage={setPage} compteur={{ montage: projets.length }} claude={claude}>
       {page === 'accueil' && <Accueil projets={projets} onPage={setPage} />}
       {page === 'montage' && <Montage onChange={rafraichir} />}
+      {page === 'inspirations' && <Inspirations onStyle={() => setPage('style')} />}
+      {page === 'style' && <MonStyle onInspirations={() => setPage('inspirations')} />}
       {A_VENIR[page] && <AVenir {...A_VENIR[page]!} />}
     </Coquille>
   )
@@ -59,8 +61,8 @@ function Accueil({ projets, onPage }: { projets: Projet[]; onPage: (p: Page) => 
         <div className="mt-7 grid max-w-[880px] grid-cols-3 gap-3">
           {[
             { page: 'montage' as Page, titre: 'Monter une vidéo', texte: 'Dépose ton rush et tes consignes.' },
-            { page: 'idees' as Page, titre: 'Écrire un script', texte: 'Dicte ta trame, Cliplex la met en forme.' },
-            { page: 'tournage' as Page, titre: 'Tourner', texte: 'Le prompteur sur ton téléphone.' }
+            { page: 'inspirations' as Page, titre: 'Ajouter des inspirations', texte: 'Des vidéos que tu aimes : Claude en tire ton style.' },
+            { page: 'style' as Page, titre: 'Mon style', texte: 'Ce que Claude applique à chaque montage.' }
           ].map((c) => (
             <button key={c.titre} onClick={() => onPage(c.page)} className="carte p-5 text-left hover:border-[#D4D4D8]">
               <b className="block text-[14px] font-semibold">{c.titre}</b>

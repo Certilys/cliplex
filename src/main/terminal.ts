@@ -2,8 +2,8 @@ import { execFile } from 'child_process'
 
 /**
  * Ouvre le Terminal de macOS avec une commande déjà tapée et lancée.
- * Utilisé quand l'installation demande le mot de passe du Mac ou une
- * connexion dans le navigateur : la personne garde la main et voit tout.
+ * Utilisé pour la connexion à Claude, qui se fait dans le navigateur :
+ * la personne garde la main et voit tout.
  */
 export function ouvrirTerminal(commande: string): Promise<void> {
   const echappee = commande.replace(/\\/g, '\\\\').replace(/"/g, '\\"')

@@ -1,11 +1,12 @@
 import { app } from 'electron'
 import { spawn } from 'child_process'
-import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
+import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { EtapeMontage, Projet } from '../shared/types'
+import type { EtapeMontage, Genre, Projet } from '../shared/types'
 import { env } from './environnement'
+import { styleDuMontage } from './inspirations'
 import { dossierProjet, modifierProjet } from './projets'
-import { dossierOutils } from './reglages'
+import { dossierOutils, sousDossier } from './reglages'
 
 /** Moteur de montage livré avec l'app : outils (préparation, compilation, rendu), studio Remotion, instructions pour Claude. */
 export function dossierMoteur(): string {
@@ -29,7 +30,8 @@ function variables(): NodeJS.ProcessEnv {
     ...env(),
     CLIPLEX_MOTEUR: dossierMoteur(),
     CLIPLEX_OUTILS: dossierOutils(),
-    CLIPLEX_STUDIO: dossierStudio()
+    CLIPLEX_STUDIO: dossierStudio(),
+    CLIPLEX_POLICES: sousDossier(join('bibliotheque', 'polices'))
   }
 }
 
@@ -63,16 +65,32 @@ function decrireOutil(nom: string, entree: any): string | null {
   const court = f.split('/').slice(-2).join('/')
   if (nom === 'Read') return f.includes('planche') ? `Regarde ${court}` : `Lit ${court}`
   if (nom === 'Write' || nom === 'Edit') return f.endsWith('plan.json') ? 'Écrit le plan de montage' : `Écrit ${court}`
-  if (nom === 'Bash') return String(entree?.command ?? '').trim().startsWith('./rendre-brouillon.sh') ? 'Rend un brouillon pour vérifier' : `Lance : ${String(entree?.command ?? '').split('\n')[0].slice(0, 80)}`
+  if (nom === 'WebSearch') return `Cherche sur internet : ${String(entree?.query ?? '').slice(0, 80)}`
+  if (nom === 'WebFetch') return `Lit ${String(entree?.url ?? '').slice(0, 80)}`
+  if (nom === 'Bash') {
+    const c = String(entree?.command ?? '').trim()
+    if (c.startsWith('./rendre-brouillon.sh')) return 'Rend un brouillon pour vérifier'
+    if (c.startsWith('curl')) return 'Télécharge une illustration'
+    return `Lance : ${c.split('\n')[0].slice(0, 80)}`
+  }
   if (nom === 'Glob' || nom === 'Grep') return null
   return nom
 }
 
-function consignes(p: Projet): string {
+const GENRES: Record<Genre, string> = {
+  formation: 'Formation (règles « Formation » de CLAUDE.md)',
+  youtube: 'Vidéo YouTube (règles « YouTube »)',
+  court: 'Vidéo courte : Shorts, Reels, TikTok (règles « Court »)',
+  pub: 'Publicité (règles « Pub »)'
+}
+
+function consignes(p: Projet, avecStyle: boolean): string {
   const [l, h] = FORMATS[p.format]
   return [
     `Titre : ${p.titre}`,
+    `Genre : ${GENRES[p.genre ?? 'formation']}`,
     `Format de sortie : ${p.format.replace('x', ':')} (${l}x${h}). Mets "format": {"largeur": ${l}, "hauteur": ${h}} dans le plan.`,
+    avecStyle ? 'Style de la personne : style.md (à appliquer en priorité sur les règles générales).' : 'Style de la personne : aucun pour cette vidéo. Reste sobre (règles générales).',
     '',
     'Consignes de la personne :',
     p.consignes.trim() || '(aucune consigne particulière : applique les règles de montage)'
@@ -125,7 +143,18 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
     // 2. Montage par Claude Code, dans le dossier du montage, avec les instructions Cliplex.
     p = modifierProjet(id, { etape: 'claude' })
     copyFileSync(join(moteur, 'claude', 'instructions.md'), join(montage, 'CLAUDE.md'))
-    writeFileSync(join(montage, 'consignes.txt'), consignes(p))
+    // Le style de la personne (inspirations + ses réponses), sauf si elle l'a désactivé pour cette vidéo.
+    const style = p.avecStyle === false ? null : styleDuMontage()
+    if (style) {
+      writeFileSync(join(montage, 'style.md'), style.texte)
+      writeFileSync(join(montage, 'theme.json'), JSON.stringify(style.theme ?? {}, null, 2))
+      journal('claude', 'Ton style est appliqué à ce montage.')
+    } else {
+      rmSync(join(montage, 'style.md'), { force: true })
+      rmSync(join(montage, 'theme.json'), { force: true })
+    }
+    mkdirSync(join(montage, 'assets'), { recursive: true })
+    writeFileSync(join(montage, 'consignes.txt'), consignes(p, Boolean(style)))
     writeFileSync(join(montage, 'rendre-brouillon.sh'), `#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "${join(moteur, 'outils', 'rendre.sh')}" "$(dirname "$0")" --brouillon\n`, { mode: 0o755 })
     journal('claude', 'Claude Code lit le rush et écrit le montage.')
     let resultat = ''
@@ -133,12 +162,12 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
       'claude',
       [
         '-p',
-        'Monte cette vidéo en suivant CLAUDE.md et consignes.txt. Pour rendre un brouillon, lance ./rendre-brouillon.sh. Termine par resume.md.',
+        'Monte cette vidéo en suivant CLAUDE.md, consignes.txt et style.md s’il existe. Pour rendre un brouillon, lance ./rendre-brouillon.sh. Termine par resume.md.',
         '--output-format',
         'stream-json',
         '--verbose',
         '--allowedTools',
-        'Read,Write,Edit,Glob,Grep,Bash(./rendre-brouillon.sh:*),Bash(ls:*)'
+        'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash(./rendre-brouillon.sh:*),Bash(ls:*),Bash(mkdir:*),Bash(curl:*),Bash(ffmpeg:*),Bash(ffprobe:*)'
       ],
       montage,
       (t) => {

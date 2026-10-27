@@ -1,10 +1,14 @@
-import type { EtatClaude } from '../shared/types'
-import { lancer } from './environnement'
+import { shell } from 'electron'
+import { existsSync, readdirSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
+import type { EtatChrome, EtatClaude } from '../shared/types'
+import { exportsShell, lancer } from './environnement'
 import { ouvrirTerminal } from './terminal'
 
 /**
- * Cliplex n'a jamais accès aux identifiants : il lance le Claude Code que la
- * personne a installé et connecté elle-même, avec son propre abonnement.
+ * Cliplex n'a jamais accès aux identifiants : il lance le Claude Code de la
+ * personne, connecté à son propre abonnement.
  */
 export async function etatClaude(): Promise<EtatClaude> {
   const v = await lancer('claude', ['--version'])
@@ -18,6 +22,26 @@ export async function etatClaude(): Promise<EtatClaude> {
   }
 }
 
+/** Ouvre le Terminal sur la connexion : la personne se connecte dans son navigateur, Cliplex le détecte. */
 export function connecterClaude(): Promise<void> {
-  return ouvrirTerminal('claude auth login')
+  return ouvrirTerminal(`${exportsShell()}; claude auth login`)
+}
+
+// Extension Claude pour Chrome (Chrome Web Store) : Claude Code s'en sert pour regarder les liens YouTube.
+const EXTENSION = 'fcoeoabgfenejglbffodgkkbkcdhcgfn'
+const CHROME = join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome')
+
+export function etatChrome(): EtatChrome {
+  const chrome = existsSync('/Applications/Google Chrome.app') || existsSync(CHROME)
+  let extension = false
+  try {
+    extension = readdirSync(CHROME).some((profil) => existsSync(join(CHROME, profil, 'Extensions', EXTENSION)))
+  } catch {
+    extension = false
+  }
+  return { chrome, extension }
+}
+
+export function installerExtension(): Promise<void> {
+  return shell.openExternal(`https://chromewebstore.google.com/detail/claude/${EXTENSION}`)
 }

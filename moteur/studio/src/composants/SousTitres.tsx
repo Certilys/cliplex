@@ -3,7 +3,8 @@ import { police } from "../polices";
 import { couleur } from "./Elements";
 
 // Sous-titres façon monteur pro : groupes de 1 à 3 mots, entrée nette (pas de rebond « IA »),
-// mot prononcé légèrement accentué, un mot-clé coloré avec halo.
+// mot prononcé légèrement accentué, un mot-clé coloré au plus.
+// Style « formation » : phrase en minuscules sur une plaque discrète, en bas, pour le 16:9.
 export const SousTitres: React.FC<{ config: any; theme: any }> = ({ config, theme }) => {
   const frame = useCurrentFrame();
   const { width: W, height: H, fps } = useVideoConfig();
@@ -16,12 +17,16 @@ export const SousTitres: React.FC<{ config: any; theme: any }> = ({ config, them
   const rebond = dyn ? spring({ frame: t, fps, config: { damping: 9, stiffness: 260, mass: 0.5 } }) : 1;
   const sortie = interpolate(frame, [g.a - 2, g.a], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const expl = style === "explicatif";
-  const base = expl
+  const formation = style === "formation";
+  const k = Math.min(W, H) / 1080;
+  const base = formation
+      ? { fontFamily: police(config.police ?? theme.police), fontWeight: 600, fontSize: (config.taille ?? 44) * k, textTransform: "none" as const, letterSpacing: 0 }
+      : expl
       ? { fontFamily: police(config.police ?? "Montserrat"), fontWeight: 800, fontSize: config.taille ?? 50, textTransform: "none" as const, letterSpacing: -0.3 }
       : style === "fin"
       ? { fontFamily: police(config.police ?? "Inter"), fontWeight: 600, fontSize: config.taille ?? 54, textTransform: "none" as const, letterSpacing: 0 }
       : { fontFamily: police(config.police ?? theme.police), fontWeight: 900, fontSize: config.taille ?? 76, textTransform: "uppercase" as const, letterSpacing: -0.5 };
-  const contour = expl || theme.sobre ? "none" : style === "fin"
+  const contour = expl || formation || theme.sobre ? "none" : style === "fin"
     ? "0 2px 10px rgba(0,0,0,.65)"
     : "0 0 2px #000, 0 3px 0 rgba(0,0,0,.85), 0 6px 18px rgba(0,0,0,.55)";
   return (
@@ -33,7 +38,7 @@ export const SousTitres: React.FC<{ config: any; theme: any }> = ({ config, them
           ...(g.zone === "gauche" ? { fontSize: (base.fontSize as number) * 0.9 } : {}),
         }}
       >
-        <span style={expl && g.encadre ? { background: "#fff", border: "4px solid #161616", boxShadow: "6px 6px 0 #161616", padding: "6px 14px", display: "inline-block" } : g.plaque ? { background: "rgba(14,13,18,.86)", borderRadius: 18, padding: "10px 14px 12px", display: "inline-block" } : undefined}>
+        <span style={expl && g.encadre ? { background: "#fff", border: "4px solid #161616", boxShadow: "6px 6px 0 #161616", padding: "6px 14px", display: "inline-block" } : formation && config.plaque !== false ? { background: "rgba(10,10,12,.72)", borderRadius: 12 * k, padding: `${8 * k}px ${16 * k}px ${10 * k}px`, display: "inline-block" } : g.plaque ? { background: "rgba(14,13,18,.86)", borderRadius: 18, padding: "10px 14px 12px", display: "inline-block" } : undefined}>
         {g.mots.map((m: any, k: number) => {
           const actif = frame >= m.de && frame < m.a + 3;
           const c = m.couleur ? couleur(m.couleur, theme) : null;
@@ -41,9 +46,9 @@ export const SousTitres: React.FC<{ config: any; theme: any }> = ({ config, them
           const coul = c ?? (cActif && actif ? (expl && cActif === "accent" ? theme.accentTexte ?? couleur(cActif, theme) : couleur(cActif, theme)) : expl ? "#161616" : "#fff");
           return (
             <span key={k} style={{
-              color: coul, display: "inline-block", margin: dyn ? "0 0.24em" : "0 0.17em",
-              textShadow: expl || theme.sobre ? "none" : c ? `${contour}, 0 0 22px ${c}99` : contour,
-              transform: `scale(${config.accentActif !== false && actif && style !== "fin" && !expl ? (dyn ? 1.08 : 1.06) : 1})`,
+              color: coul, display: "inline-block", margin: formation ? "0 0.12em" : dyn ? "0 0.24em" : "0 0.17em",
+              textShadow: contour,
+              transform: `scale(${config.accentActif !== false && actif && style !== "fin" && !expl && !formation ? (dyn ? 1.08 : 1.06) : 1})`,
             }}>
               {m.texte.replace(/[,.;:]$/, "")}
             </span>

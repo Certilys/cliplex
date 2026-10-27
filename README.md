@@ -14,9 +14,10 @@ Clip Express : ta vidéo montée en quelques minutes. Et un lexique : Cliplex ap
 
 ## Principes
 
-- **Tout reste sur ton Mac.** Tes rushs, tes montages et la transcription de ta voix ne quittent pas ton ordinateur.
+- **Tout reste sur ton Mac, dans un seul dossier.** Outils, rushs, montages, inspirations et style vont dans ton dossier Cliplex. Supprime-le avec l'app, et il ne reste rien.
 - **Transparence totale.** Chaque outil installé est montré, expliqué, avec la commande exacte lancée. Rien n'est caché.
-- **Ton compte, tes règles.** Cliplex lance le Claude Code que tu as installé et connecté toi-même. Il ne voit jamais tes identifiants.
+- **Ton compte, tes règles.** Cliplex lance Claude Code avec ton propre abonnement. Il ne voit jamais tes identifiants.
+- **Ton style, pas le nôtre.** Tu montres à Claude les vidéos que tu aimes ; il en tire ton style et l'applique à chaque montage.
 - **Des fichiers normaux.** Un projet = un dossier lisible que tu peux ouvrir, copier, sauvegarder.
 
 ## État
@@ -25,10 +26,10 @@ Version 0.1, en développement actif. macOS d'abord, Windows et Linux ensuite.
 
 | Fonction | État |
 | --- | --- |
-| Premier lancement guidé (objectifs, dossier, installation, Claude) | Fait |
-| Projets vidéo : rushs, format, consignes | Fait |
-| Moteur de montage automatique | En cours |
-| Inspirations et styles appris | À venir |
+| Premier lancement guidé (besoins, objectifs, dossier, installation, Claude, inspirations) | Fait |
+| Projets vidéo : genre, format, rushs, consignes | Fait |
+| Moteur de montage automatique (formation, YouTube, courts, pubs) | Fait, en amélioration |
+| Inspirations (vidéos, images, liens YouTube) et style appris | Fait |
 | Idées, scripts et planning | À venir |
 | Prompteur sur téléphone, décor de tournage | À venir |
 | Banque de sons libres de droits | À venir |
@@ -44,7 +45,7 @@ npm install
 npm run dev
 ```
 
-Les outils de montage (ffmpeg, whisper.cpp, Python, Claude Code) s'installent depuis l'app au premier lancement, ou à la main : voir [docs/installation-manuelle.md](docs/installation-manuelle.md).
+Les outils de montage (ffmpeg, Node, Python et whisper, Remotion, Claude Code si besoin) s'installent depuis l'app au premier lancement, dans le dossier Cliplex, ou à la main : voir [docs/installation-manuelle.md](docs/installation-manuelle.md).
 
 ## Structure
 

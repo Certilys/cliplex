@@ -34,7 +34,7 @@ export function avecSousDossier(choisi: string): string {
   return basename(choisi).toLowerCase() === 'cliplex' ? choisi : join(choisi, 'Cliplex')
 }
 
-/** Dossier de travail (projets, rushs, montages), ~/Cliplex par défaut. Créé au besoin. */
+/** Dossier Cliplex (outils, projets, inspirations, style), ~/Cliplex par défaut. Créé au besoin. */
 export function dossierTravail(): string {
   const r = lireReglages().dossier
   const d = r ? avecSousDossier(r) : join(homedir(), 'Cliplex')
@@ -43,11 +43,17 @@ export function dossierTravail(): string {
 }
 
 /**
- * Outils installés par Cliplex lui-même (modèle de transcription, Python),
- * dans le dossier de l'app : ~/Library/Application Support/Cliplex/outils.
+ * Tout ce que Cliplex installe (ffmpeg, Node, Python, modèles, moteur d'animation,
+ * Claude Code s'il manquait) reste dans <dossier>/outils : supprimer le dossier
+ * Cliplex efface tout, rien n'est installé ailleurs sur le Mac.
  */
 export function dossierOutils(): string {
-  const d = join(app.getPath('userData'), 'outils')
+  return sousDossier('outils')
+}
+
+/** Un sous-dossier du dossier Cliplex (projets, inspirations, style, bibliotheque…), créé au besoin. */
+export function sousDossier(nom: string): string {
+  const d = join(dossierTravail(), nom)
   if (!existsSync(d)) mkdirSync(d, { recursive: true })
   return d
 }

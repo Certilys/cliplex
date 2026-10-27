@@ -43,4 +43,4 @@ export const POLICES: Record<string, string> = {
   Caveat: "Caveat", Bebas: "Bebas Neue", ArchivoBlack: "Archivo Black",
   Sora: "Sora", Manrope: "Manrope", Poppins: "Poppins", DMSans: "DM Sans", "DM Sans": "DM Sans", PlusJakartaSans: "Plus Jakarta Sans", "Plus Jakarta Sans": "Plus Jakarta Sans", Mono: "JetBrains Mono", InterTight: "Inter Tight", "Inter Tight": "Inter Tight", Serif: "Instrument Serif", "Instrument Serif": "Instrument Serif",
 };
-export const police = (nom?: string, defaut = "Montserrat") => `'${POLICES[nom ?? defaut] ?? nom ?? defaut}', sans-serif`;
+export const police = (nom?: string, defaut = "Inter") => `'${POLICES[nom ?? defaut] ?? nom ?? defaut}', sans-serif`;

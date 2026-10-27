@@ -2,6 +2,7 @@
 import { AbsoluteFill, Easing, Img, OffthreadVideo, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { police } from "../polices";
 import { Notif, Particules, Titre3D } from "./Motion";
+import { Chapitre, Code, Definition, Ecran, Encart, Idee, Schema, Surlignage, Tiers } from "./Formation";
 
 export const couleur = (c: string | undefined, theme: any) =>
   !c ? "#fff" : c === "accent" ? theme.accent : c === "rouge" ? theme.rouge : c === "cyan" ? theme.cyan : c === "blanc" ? "#fff" : c === "noir" ? "#0b0b0b" : c;
@@ -219,6 +220,15 @@ export const Element: React.FC<{ el: any; theme: any }> = ({ el: el0, theme }) =
     case "notif": return <Notif el={el} theme={theme} />;
     case "particules": return <Particules el={el} theme={theme} />;
     case "titre3d": return <Titre3D el={el} theme={theme} />;
+    case "chapitre": return <Chapitre el={el} theme={theme} />;
+    case "encart": return <Encart el={el} theme={theme} />;
+    case "idee": return <Idee el={el} theme={theme} />;
+    case "definition": return <Definition el={el} theme={theme} />;
+    case "tiers": return <Tiers el={el} theme={theme} />;
+    case "ecran": return <Ecran el={el} theme={theme} />;
+    case "code": return <Code el={el} theme={theme} />;
+    case "schema": return <Schema el={el} theme={theme} />;
+    case "surlignage": return <Surlignage el={el} theme={theme} />;
     default: return null;
   }
 };

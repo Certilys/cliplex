@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { basename, join } from 'path'
-import type { Projet } from '../shared/types'
+import type { Genre, Projet } from '../shared/types'
 import { dossierTravail } from './reglages'
 
 // Un projet = un dossier lisible à la main :
@@ -64,11 +64,11 @@ export function listerProjets(): Projet[] {
     .sort((a, b) => b.majLe.localeCompare(a.majLe))
 }
 
-export function creerProjet(titre: string, format: Projet['format']): Projet {
+export function creerProjet(titre: string, format: Projet['format'], genre: Genre = 'formation'): Projet {
   const id = slug(titre)
   for (const sous of ['rushs', 'montage']) mkdirSync(join(dossierProjet(id), sous), { recursive: true })
   const maintenant = new Date().toISOString()
-  return ecrire({ id, titre: titre.trim() || 'Nouvelle vidéo', format, consignes: '', rushs: [], creeLe: maintenant, majLe: maintenant, statut: 'brouillon' })
+  return ecrire({ id, titre: titre.trim() || 'Nouvelle vidéo', format, genre, consignes: '', rushs: [], creeLe: maintenant, majLe: maintenant, statut: 'brouillon' })
 }
 
 export function modifierProjet(id: string, partiel: Partial<Projet>): Projet {

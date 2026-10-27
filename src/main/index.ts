@@ -3,13 +3,25 @@ import { is } from '@electron-toolkit/utils'
 import { writeFileSync } from 'fs'
 import { join, normalize } from 'path'
 import { pathToFileURL } from 'url'
-import type { LigneJournal, Projet, Reglages } from '../shared/types'
-import { connecterClaude, etatClaude } from './claude'
-import { commandeTerminal, installerOutil, listerOutils } from './outils'
+import type { Genre, LigneJournal, Projet, Reglages } from '../shared/types'
+import { connecterClaude, etatChrome, etatClaude, installerExtension } from './claude'
+import { installerOutil, listerOutils } from './outils'
 import { copierRushs, creerProjet, dossierProjet, listerProjets, modifierProjet } from './projets'
 import { avecSousDossier, ecrireReglages, lireReglages } from './reglages'
-import { ouvrirTerminal } from './terminal'
 import { arreterMontage, lancerMontage } from './moteur'
+import {
+  ajouterFichiers,
+  ajouterLien,
+  analyserInspiration,
+  arreterInspiration,
+  dossierInspiration,
+  lireStyle,
+  listerInspirations,
+  modifierStyleTexte,
+  repondreQuestion,
+  supprimerInspiration,
+  synthetiserStyle
+} from './inspirations'
 
 let fenetre: BrowserWindow | null = null
 
@@ -68,22 +80,37 @@ function brancherIpc(): void {
   })
 
   ipcMain.handle('outils:lister', () => listerOutils())
-  ipcMain.handle('outils:installer', async (_e, id: string) => {
-    const terminal = commandeTerminal(id)
-    if (terminal) {
-      journal({ outil: id, type: 'note', texte: '# Cette installation demande ton mot de passe : elle s’ouvre dans le Terminal.' })
-      journal({ outil: id, type: 'commande', texte: terminal })
-      await ouvrirTerminal(terminal)
-      return false
-    }
-    return installerOutil(id, journal)
-  })
+  ipcMain.handle('outils:installer', (_e, id: string) => installerOutil(id, journal))
 
   ipcMain.handle('claude:etat', () => etatClaude())
   ipcMain.handle('claude:connecter', () => connecterClaude())
+  ipcMain.handle('claude:chrome', () => etatChrome())
+  ipcMain.handle('claude:installerExtension', () => installerExtension())
+
+  const journalInspiration = (id: string, texte: string) => fenetre?.webContents.send('inspirations:journal', { id, texte })
+  ipcMain.handle('inspirations:lister', () => listerInspirations())
+  ipcMain.handle('inspirations:ajouterFichiers', async () => {
+    const r = await dialog.showOpenDialog(fenetre!, {
+      title: 'Ajouter des inspirations',
+      buttonLabel: 'Ajouter',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Vidéos et images', extensions: ['mp4', 'mov', 'm4v', 'webm', 'mkv', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'] }]
+    })
+    return r.canceled ? [] : ajouterFichiers(r.filePaths)
+  })
+  ipcMain.handle('inspirations:deposer', (_e, chemins: string[]) => ajouterFichiers(chemins))
+  ipcMain.handle('inspirations:ajouterLien', (_e, url: string, note: string) => ajouterLien(url, note))
+  ipcMain.handle('inspirations:supprimer', (_e, id: string) => supprimerInspiration(id))
+  ipcMain.handle('inspirations:analyser', (_e, id: string) => analyserInspiration(id, journalInspiration))
+  ipcMain.handle('inspirations:arreter', (_e, id: string) => arreterInspiration(id))
+
+  ipcMain.handle('style:lire', () => lireStyle())
+  ipcMain.handle('style:synthetiser', () => synthetiserStyle(journalInspiration))
+  ipcMain.handle('style:repondre', (_e, question: string, reponse: string) => repondreQuestion(question, reponse))
+  ipcMain.handle('style:modifierTexte', (_e, texte: string) => modifierStyleTexte(texte))
 
   ipcMain.handle('projets:lister', () => listerProjets())
-  ipcMain.handle('projets:creer', (_e, titre: string, format: Projet['format']) => creerProjet(titre, format))
+  ipcMain.handle('projets:creer', (_e, titre: string, format: Projet['format'], genre: Genre) => creerProjet(titre, format, genre))
   ipcMain.handle('projets:modifier', (_e, id: string, partiel: Partial<Projet>) => modifierProjet(id, partiel))
   ipcMain.handle('projets:ajouterRushs', async (_e, id: string) => {
     const r = await dialog.showOpenDialog(fenetre!, {
@@ -102,13 +129,14 @@ function brancherIpc(): void {
   ipcMain.handle('montage:arreter', (_e, id: string) => arreterMontage(id))
 }
 
-// Lecture des vidéos d'un projet par l'interface : cliplex-fichier://projet/<id>/<chemin>,
-// limitée au dossier de ce projet.
+// Lecture des fichiers par l'interface : cliplex-fichier://projet/<id>/<chemin>
+// ou cliplex-fichier://inspiration/<id>/<chemin>, limitée au dossier de cet élément.
 function brancherProtocole(): void {
   protocol.handle('cliplex-fichier', (requete) => {
     const url = new URL(requete.url)
     const [id, ...reste] = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
-    const racine = dossierProjet(id)
+    if (!id) return new Response('Interdit', { status: 403 })
+    const racine = url.hostname === 'inspiration' ? dossierInspiration(id) : dossierProjet(id)
     const chemin = normalize(join(racine, ...reste))
     if (!chemin.startsWith(racine + '/')) return new Response('Interdit', { status: 403 })
     return net.fetch(pathToFileURL(chemin).toString(), { headers: requete.headers })

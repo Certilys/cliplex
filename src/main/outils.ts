@@ -1,11 +1,16 @@
 import { existsSync, readFileSync, statSync } from 'fs'
+import { homedir } from 'os'
 import { join } from 'path'
 import type { LigneJournal, Outil } from '../shared/types'
-import { lancer, suivre } from './environnement'
+import { chemins, lancer, suivre } from './environnement'
 import { dossierMoteur, dossierStudio } from './moteur'
-import { dossierOutils } from './reglages'
 
 export const MODELE_WHISPER = 'ggml-large-v3-turbo-q5_0.bin'
+
+// Versions figées : la même installation pour tout le monde, mise à jour avec l'app.
+const NODE = '24.22.1'
+const UV = '0.13.6'
+const PUCE = process.arch === 'arm64' ? { node: 'arm64', uv: 'aarch64', ffmpeg: 'arm64' } : { node: 'x64', uv: 'x86_64', ffmpeg: 'amd64' }
 
 interface Definition extends Omit<Outil, 'etat' | 'version' | 'chemin' | 'commande'> {
   commande: () => string
@@ -13,37 +18,23 @@ interface Definition extends Omit<Outil, 'etat' | 'version' | 'chemin' | 'comman
 }
 
 const premiere = (texte: string, motif: RegExp): string | undefined => texte.match(motif)?.[1]
+const modeles = () => join(chemins().outils, 'modeles')
+const cheminModele = () => join(modeles(), MODELE_WHISPER)
 
-function cheminModele(): string {
-  return join(dossierOutils(), 'modeles', MODELE_WHISPER)
-}
-
-function pythonOutils(): string {
-  return join(dossierOutils(), 'python', 'bin', 'python3')
-}
-
-// L'ordre compte : Homebrew installe ffmpeg, Node et whisper.cpp.
+// Tout s'installe dans <dossier>/outils, sans mot de passe ni Homebrew.
+// L'ordre compte : Node sert au moteur d'animation et à installer Claude Code.
 const DEFINITIONS: Definition[] = [
-  {
-    id: 'homebrew',
-    nom: 'Homebrew',
-    role: "Le gestionnaire d'outils de macOS. Il installe ffmpeg, Node et whisper.cpp proprement, comme le font les développeurs.",
-    taille: '≈ 50 Mo',
-    terminal: true,
-    commande: () => '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-    detecter: async () => {
-      const r = await lancer('brew', ['--version'])
-      return r.ok ? { version: premiere(r.sortie, /Homebrew (\S+)/) } : null
-    }
-  },
   {
     id: 'ffmpeg',
     nom: 'ffmpeg',
     role: "Découpe, assemble et exporte la vidéo. C'est la base de presque tous les logiciels de montage.",
     taille: '≈ 80 Mo',
-    commande: () => 'brew install ffmpeg',
+    commande: () => {
+      const b = chemins().bin
+      return `mkdir -p "${b}" && cd "${b}" && for x in ffmpeg ffprobe; do curl -L --fail --progress-bar -o $x.zip https://ffmpeg.martin-riedl.de/redirect/latest/macos/${PUCE.ffmpeg}/release/$x.zip && unzip -oq $x.zip && rm $x.zip; done`
+    },
     detecter: async () => {
-      const r = await lancer('ffmpeg', ['-version'])
+      const r = await lancer(join(chemins().bin, 'ffmpeg'), ['-version'])
       return r.ok ? { version: premiere(r.sortie, /ffmpeg version (\S+)/) } : null
     }
   },
@@ -51,34 +42,39 @@ const DEFINITIONS: Definition[] = [
     id: 'node',
     nom: 'Node.js',
     role: "Fait tourner le moteur d'animation qui dessine les textes, les sous-titres et les effets.",
-    taille: '≈ 70 Mo',
-    commande: () => 'brew install node',
+    taille: '≈ 50 Mo',
+    commande: () => {
+      const d = join(chemins().outils, 'node')
+      return `mkdir -p "${d}" && curl -L --fail --progress-bar https://nodejs.org/dist/v${NODE}/node-v${NODE}-darwin-${PUCE.node}.tar.gz | tar xz -C "${d}" --strip-components 1`
+    },
     detecter: async () => {
-      const r = await lancer('node', ['--version'])
+      const r = await lancer(join(chemins().node, 'node'), ['--version'])
       return r.ok ? { version: r.sortie.replace(/^v/, '') } : null
     }
   },
   {
-    id: 'whisper',
-    nom: 'whisper.cpp',
-    role: 'Écoute ta voix et écrit les sous-titres, mot à mot, directement sur ton Mac. Rien n’est envoyé en ligne.',
-    taille: '≈ 10 Mo',
-    commande: () => 'brew install whisper.cpp',
+    id: 'python',
+    nom: 'Python et whisper',
+    role: 'Repère les moments où tu parles et écrit les sous-titres mot à mot, directement sur ton Mac. Rien n’est envoyé en ligne.',
+    taille: '≈ 120 Mo',
+    commande: () => {
+      const c = chemins()
+      const d = join(c.outils, 'python')
+      return `mkdir -p "${c.bin}" && curl -L --fail -sS https://github.com/astral-sh/uv/releases/download/${UV}/uv-${PUCE.uv}-apple-darwin.tar.gz | tar xz -C "${c.bin}" --strip-components 1 && "${c.bin}/uv" venv --python 3.12 "${d}" && "${c.bin}/uv" pip install --python "${d}/bin/python" numpy pywhispercpp`
+    },
     detecter: async () => {
-      const r = await lancer('whisper-cli', ['--help'])
-      if (!r.ok && !r.sortie.includes('usage')) return null
-      const v = await lancer('brew', ['list', '--versions', 'whisper.cpp'])
-      return { version: premiere(v.sortie, /whisper\.cpp (\S+)/) }
+      const r = await lancer(chemins().python, ['-c', 'import numpy, pywhispercpp, sys; print(sys.version.split()[0])'])
+      return r.ok ? { version: `Python ${r.sortie}`, chemin: chemins().python } : null
     }
   },
   {
     id: 'modele',
     nom: 'Modèle de transcription',
-    role: 'Le « cerveau » de whisper.cpp, entraîné à reconnaître la parole en français et dans 90 autres langues.',
+    role: 'Le « cerveau » de whisper, entraîné à reconnaître la parole en français et dans 90 autres langues.',
     taille: '≈ 575 Mo',
     commande: () => {
       const f = cheminModele()
-      return `mkdir -p "${join(dossierOutils(), 'modeles')}" && curl -L --fail --progress-bar -o "${f}.part" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${MODELE_WHISPER} && mv "${f}.part" "${f}"`
+      return `mkdir -p "${modeles()}" && curl -L --fail --progress-bar -o "${f}.part" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${MODELE_WHISPER} && mv "${f}.part" "${f}"`
     },
     detecter: async () => {
       const f = cheminModele()
@@ -90,33 +86,16 @@ const DEFINITIONS: Definition[] = [
     nom: 'Débruiteur de voix',
     role: 'Un petit réseau de neurones (RNNoise) qui retire le souffle et les bruits de fond de ta voix, sans la déformer.',
     taille: '≈ 300 Ko',
-    commande: () => {
-      const d = join(dossierOutils(), 'modeles')
-      return `mkdir -p "${d}" && curl -L --fail -sS -o "${d}/sh.rnnn" https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn`
-    },
+    commande: () => `mkdir -p "${modeles()}" && curl -L --fail -sS -o "${modeles()}/sh.rnnn" https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn`,
     detecter: async () => {
-      const f = join(dossierOutils(), 'modeles', 'sh.rnnn')
+      const f = join(modeles(), 'sh.rnnn')
       return existsSync(f) && statSync(f).size > 200e3 ? { version: 'somnolent-hogwash', chemin: f } : null
-    }
-  },
-  {
-    id: 'python',
-    nom: 'Python et numpy',
-    role: 'Repère les silences et les moments où tu parles, pour caler les sous-titres à la milliseconde.',
-    taille: '≈ 40 Mo',
-    commande: () => {
-      const d = join(dossierOutils(), 'python')
-      return `python3 -m venv "${d}" && "${d}/bin/pip" install --upgrade numpy`
-    },
-    detecter: async () => {
-      const r = await lancer(pythonOutils(), ['-c', 'import numpy; print(numpy.__version__)'])
-      return r.ok ? { version: `numpy ${r.sortie}`, chemin: pythonOutils() } : null
     }
   },
   {
     id: 'studio',
     nom: "Moteur d'animation (Remotion)",
-    role: 'Dessine chaque image de ta vidéo : plans, zooms, sous-titres animés, textes. Il télécharge aussi le navigateur qui sert au rendu.',
+    role: 'Dessine chaque image de ta vidéo : plans, zooms, sous-titres, titres, schémas. Il télécharge aussi le navigateur qui sert au rendu.',
     taille: '≈ 300 Mo',
     commande: () => {
       const src = join(dossierMoteur(), 'studio')
@@ -136,15 +115,23 @@ const DEFINITIONS: Definition[] = [
   {
     id: 'claude',
     nom: 'Claude Code',
-    role: "L'assistant qui monte ta vidéo en suivant tes consignes. Il utilise ton propre compte Claude.",
+    role: "L'agent qui regarde tes inspirations et monte tes vidéos, avec ton propre abonnement Claude. S'il est déjà sur ton Mac, Cliplex se sert du tien.",
     taille: '≈ 60 Mo',
-    commande: () => 'curl -fsSL https://claude.ai/install.sh | bash',
+    commande: () => {
+      const d = join(chemins().outils, 'claude')
+      return `mkdir -p "${d}" && npm install --prefix "${d}" --no-audit --no-fund @anthropic-ai/claude-code && touch "${d}/.cliplex"`
+    },
     detecter: async () => {
       const r = await lancer('claude', ['--version'])
-      return r.ok ? { version: premiere(r.sortie, /^(\S+)/) } : null
+      if (!r.ok) return null
+      const local = existsSync(chemins().claudeLocal)
+      return { version: `${premiere(r.sortie, /^(\S+)/)}${local ? '' : ', déjà sur ton Mac'}` }
     }
   }
 ]
+
+/** Les commandes s'affichent avec ~ à la place du dossier personnel : plus court, et rien de personnel à l'écran. */
+const lisible = (commande: string) => commande.split(homedir()).join('~')
 
 const enCours = new Set<string>()
 const erreurs = new Set<string>()
@@ -152,7 +139,7 @@ const erreurs = new Set<string>()
 export async function listerOutils(): Promise<Outil[]> {
   return Promise.all(
     DEFINITIONS.map(async ({ detecter, commande, ...d }) => {
-      const base = { ...d, commande: commande() }
+      const base = { ...d, commande: lisible(commande()) }
       if (enCours.has(d.id)) return { ...base, etat: 'installation' as const }
       const trouve = await detecter()
       if (trouve) return { ...base, etat: 'present' as const, ...trouve }
@@ -168,7 +155,7 @@ export async function installerOutil(id: string, journal: (l: LigneJournal) => v
   enCours.add(id)
   erreurs.delete(id)
   journal({ outil: id, type: 'note', texte: `# ${def.nom} : ${def.role}` })
-  journal({ outil: id, type: 'commande', texte: commande })
+  journal({ outil: id, type: 'commande', texte: lisible(commande) })
   let dernier = -1
   const ok = await suivre(commande, (texte, erreur) => {
     // Barre de progression de curl : une ligne tous les 5 %, pas des centaines.
@@ -180,7 +167,7 @@ export async function installerOutil(id: string, journal: (l: LigneJournal) => v
       journal({ outil: id, type: 'sortie', texte: `téléchargement : ${p} %` })
       return
     }
-    journal({ outil: id, type: erreur ? 'erreur' : 'sortie', texte })
+    journal({ outil: id, type: erreur ? 'erreur' : 'sortie', texte: lisible(texte) })
   })
   enCours.delete(id)
   const present = ok && (await def.detecter())
@@ -191,10 +178,4 @@ export async function installerOutil(id: string, journal: (l: LigneJournal) => v
   erreurs.add(id)
   journal({ outil: id, type: 'erreur', texte: `${def.nom} n'a pas pu être installé. La commande ci-dessus peut être lancée à la main dans le Terminal.` })
   return false
-}
-
-/** Commandes à lancer soi-même dans le Terminal (mot de passe demandé). */
-export function commandeTerminal(id: string): string | null {
-  const def = DEFINITIONS.find((d) => d.id === id)
-  return def?.terminal ? def.commande() : null
 }

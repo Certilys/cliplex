@@ -72,7 +72,29 @@ const TRACES = {
       <path d="M20 20l-3.5-3.5" />
     </>
   ),
-  actualiser: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
+  actualiser: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />,
+  lien: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
+  poubelle: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9z" />
+    </>
+  ),
+  reglages: <path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" />,
+  stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+  agent: (
+    <>
+      <rect x="4" y="7" width="16" height="12" rx="3" />
+      <path d="M12 3v4M9 12v2M15 12v2" />
+    </>
+  ),
+  disque: (
+    <>
+      <ellipse cx="12" cy="6" rx="8" ry="3" />
+      <path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </>
+  )
 }
 
 export type NomIcone = keyof typeof TRACES

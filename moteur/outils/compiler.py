@@ -16,6 +16,10 @@ ICI = pathlib.Path(__file__).resolve().parent
 # Bibliothèque de sons (facultative) : CLIPLEX_SONS/kit.json = {nom: {fichier, pic}, "_familles": {famille: [noms]}}
 SONS = pathlib.Path(os.environ["CLIPLEX_SONS"]) if os.environ.get("CLIPLEX_SONS") else None
 MUSIQUE = pathlib.Path(os.environ["CLIPLEX_MUSIQUE"]) if os.environ.get("CLIPLEX_MUSIQUE") else None
+# Polices de la personne (facultatif) : CLIPLEX_POLICES/polices.json = [{famille, fichier, graisse, style}]
+POLICES = pathlib.Path(os.environ["CLIPLEX_POLICES"]) if os.environ.get("CLIPLEX_POLICES") else None
+# Thème sobre par défaut : texte blanc, aucune couleur imposée. Le style de la personne (montage/theme.json) et le plan le remplacent.
+THEME = {"accent": "#FFFFFF", "rouge": "#E5484D", "cyan": "#3DE0FF", "blanc": "#FFFFFF", "police": "Inter", "policeTitre": "Inter Tight", "sobre": True}
 KIT = json.loads((SONS / "kit.json").read_text()) if SONS and (SONS / "kit.json").exists() else {}
 
 # Sons posés automatiquement par type d'effet (surchargeable dans plan.sonsAuto ou par élément avec "son")
@@ -83,7 +87,7 @@ def main(dossier):
     # Dossier public propre au projet pour Remotion : montage/ = ce projet, sons/ et musique/ = bibliothèques.
     # Rangé à côté du projet (pas dedans) pour que montage/ ne se contienne pas lui-même.
     pub = public(dossier); pub.mkdir(exist_ok=True)
-    for nom, cible in (("montage", dossier), ("sons", SONS), ("musique", MUSIQUE)):
+    for nom, cible in (("montage", dossier), ("sons", SONS), ("musique", MUSIQUE), ("polices", POLICES)):
         l = pub / nom
         if l.is_symlink() or l.exists(): l.unlink()
         if cible: l.symlink_to(cible)
@@ -274,7 +278,7 @@ def main(dossier):
             continue
         if typ == "musiqueCoupe":  # silence musical (avant une révélation)
             de, a = ancre(ev, 0.8); elements.append({"type": "musiqueCoupe", "de": de, "a": a}); continue
-        de, a = ancre(ev, {"motGeant": 1.2, "titre": 2.5, "croix": 1.0, "coche": 1.0, "compteur": 1.6}.get(typ, 1.5))
+        de, a = ancre(ev, {"motGeant": 1.2, "titre": 2.5, "croix": 1.0, "coche": 1.0, "compteur": 1.6, "chapitre": 2.2, "tiers": 4.0, "encart": 4.0, "idee": 3.0, "definition": 4.0, "ecran": 4.0, "code": 5.0, "schema": 4.0, "surlignage": 2.5}.get(typ, 1.5))
         el = {k: v for k, v in ev.items() if k not in ("mot", "jusqua", "duree", "decalage", "prolonger", "t")}
         el.update({"de": de, "a": a})
         if typ == "carton":  # cartons plein écran mot par mot, calés sur chaque mot
@@ -288,8 +292,12 @@ def main(dossier):
             masques.append([de, a])
         if typ == "positionSousTitres":
             positions.append([de, a, ev.get("position"), ev.get("plaque", False)]); continue
-        if typ == "liste":  # checklist : chaque item apparaît sur son mot
-            el["items"] = [{"texte": it["texte"], "de": t_mot(it["mot"])} for it in ev["items"]]
+        # listes, encarts, schémas (items) et zones d'un écran : chaque morceau apparaît sur son mot
+        for cle in ("items", "zones"):
+            if isinstance(ev.get(cle), list):
+                el[cle] = [{**{k: v for k, v in it.items() if k != "mot"}, "de": t_mot(it["mot"]) if "mot" in it else de} for it in ev[cle]]
+        if typ == "chapitre" and ev.get("mode", "plein") == "plein": masques.append([de, a])
+        if typ in ("ecran", "schema") and ev.get("cote", "plein") not in ("gauche", "droite") and ev.get("masqueSousTitres", True): masques.append([de, a])
         if typ == "broll" and ev.get("mode", "plein") == "plein" and ev.get("masqueSousTitres", False): masques.append([de, a])
         if ev.get("masqueSousTitres") and typ != "broll": masques.append([de, a])
         if typ in ("broll", "image") and ev.get("entree"):
@@ -366,9 +374,10 @@ def main(dossier):
     for c in clips:
         if c.get("src", "").startswith("montage/sources/") and (dossier / c["src"][len("montage/"):].replace(".mp4", "_apercu.mp4")).exists():
             c["apercu"] = c["src"].replace(".mp4", "_apercu.mp4")
+    theme_style = json.loads((dossier / "theme.json").read_text()) if (dossier / "theme.json").exists() else {}
     tl = {"fps": fps, "largeur": fmt["largeur"], "hauteur": fmt["hauteur"], "duree": total, "mode": plan.get("mode", "filme"),
-          "theme": {"accent": "#C6F54A", "rouge": "#FF3B30", "cyan": "#3DE0FF", "blanc": "#FFFFFF",
-                    "police": "Montserrat", "policeTitre": "Anton", **plan.get("theme", {})},
+          "theme": {**THEME, **theme_style, **plan.get("theme", {})},
+          "polices": json.loads((POLICES / "polices.json").read_text()) if POLICES and (POLICES / "polices.json").exists() else [],
           "sousTitres": {**st, "groupes": grp if st["actif"] else []},
           "clips": clips, "mots": kept, "zooms": zooms, "transitions": transitions,
           "elements": [e for e in elements if e["type"] != "musiqueCoupe"], "sons": sons, "musique": musique,

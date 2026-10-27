@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, LigneJournal, LigneMontage } from '../shared/types'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { Api, LigneInspiration, LigneJournal, LigneMontage } from '../shared/types'
 
 const api: Api = {
   reglages: {
@@ -18,11 +18,35 @@ const api: Api = {
   },
   claude: {
     etat: () => ipcRenderer.invoke('claude:etat'),
-    connecter: () => ipcRenderer.invoke('claude:connecter')
+    connecter: () => ipcRenderer.invoke('claude:connecter'),
+    chrome: () => ipcRenderer.invoke('claude:chrome'),
+    installerExtension: () => ipcRenderer.invoke('claude:installerExtension')
+  },
+  inspirations: {
+    lister: () => ipcRenderer.invoke('inspirations:lister'),
+    ajouterFichiers: () => ipcRenderer.invoke('inspirations:ajouterFichiers'),
+    deposer: (chemins) => ipcRenderer.invoke('inspirations:deposer', chemins),
+    ajouterLien: (url, note) => ipcRenderer.invoke('inspirations:ajouterLien', url, note),
+    supprimer: (id) => ipcRenderer.invoke('inspirations:supprimer', id),
+    analyser: (id) => ipcRenderer.invoke('inspirations:analyser', id),
+    arreter: (id) => ipcRenderer.invoke('inspirations:arreter', id),
+    journal: (rappel) => {
+      const ecoute = (_e: unknown, ligne: LigneInspiration) => rappel(ligne)
+      ipcRenderer.on('inspirations:journal', ecoute)
+      return () => ipcRenderer.removeListener('inspirations:journal', ecoute)
+    },
+    adresse: (id, fichier) => `cliplex-fichier://inspiration/${encodeURIComponent(id)}/${fichier.split('/').map(encodeURIComponent).join('/')}`,
+    cheminDe: (fichier) => webUtils.getPathForFile(fichier)
+  },
+  style: {
+    lire: () => ipcRenderer.invoke('style:lire'),
+    synthetiser: () => ipcRenderer.invoke('style:synthetiser'),
+    repondre: (question, reponse) => ipcRenderer.invoke('style:repondre', question, reponse),
+    modifierTexte: (texte) => ipcRenderer.invoke('style:modifierTexte', texte)
   },
   projets: {
     lister: () => ipcRenderer.invoke('projets:lister'),
-    creer: (titre, format) => ipcRenderer.invoke('projets:creer', titre, format),
+    creer: (titre, format, genre) => ipcRenderer.invoke('projets:creer', titre, format, genre),
     modifier: (id, partiel) => ipcRenderer.invoke('projets:modifier', id, partiel),
     ajouterRushs: (id) => ipcRenderer.invoke('projets:ajouterRushs', id),
     ouvrirDossier: (id) => ipcRenderer.invoke('projets:ouvrirDossier', id),

@@ -4,7 +4,7 @@
 # Variables : CLIPLEX_STUDIO (studio Remotion installé), CLIPLEX_OUTILS (Python), CLIPLEX_SONS / CLIPLEX_MUSIQUE / CLIPLEX_NAVIGATEUR (facultatives).
 set -e
 ICI="$(cd "$(dirname "$0")" && pwd)"; M="$(cd "$1" && pwd)"; STUDIO="${CLIPLEX_STUDIO:-$ICI/../studio}"
-PY="${CLIPLEX_OUTILS:-}/python/bin/python3"; [ -x "$PY" ] || PY=python3
+PY="${CLIPLEX_OUTILS:-}/python/bin/python"; [ -x "$PY" ] || PY=python3
 "$PY" -I "$ICI/compiler.py" "$M"
 PUBLIC="$(dirname "$M")/.$(basename "$M").public"
 SCALE=${ECHELLE:-1}; [ "$2" == "--brouillon" ] && SCALE=0.5

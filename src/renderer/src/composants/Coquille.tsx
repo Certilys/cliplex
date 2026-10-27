@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Icone, type NomIcone } from './Icone'
 import { Logo } from './Logo'
 
-export type Page = 'accueil' | 'idees' | 'planning' | 'tournage' | 'montage' | 'inspirations' | 'sons' | 'modeles'
+export type Page = 'accueil' | 'idees' | 'planning' | 'tournage' | 'montage' | 'inspirations' | 'style' | 'sons'
 
 const GROUPES: { titre?: string; liens: { id: Page; nom: string; icone: NomIcone }[] }[] = [
   { liens: [{ id: 'accueil', nom: 'Accueil', icone: 'maison' }] },
@@ -19,8 +19,8 @@ const GROUPES: { titre?: string; liens: { id: Page; nom: string; icone: NomIcone
     titre: 'Bibliothèque',
     liens: [
       { id: 'inspirations', nom: 'Inspirations', icone: 'image' },
-      { id: 'sons', nom: 'Sons et musiques', icone: 'musique' },
-      { id: 'modeles', nom: 'Modèles', icone: 'modeles' }
+      { id: 'style', nom: 'Mon style', icone: 'reglages' },
+      { id: 'sons', nom: 'Sons et musiques', icone: 'musique' }
     ]
   }
 ]

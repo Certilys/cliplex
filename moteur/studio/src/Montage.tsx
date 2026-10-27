@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import "./polices";
+import { usePolicesLocales } from "./PolicesLocales";
 import { Clip } from "./composants/Clip";
 import { SousTitres } from "./composants/SousTitres";
 import { Element } from "./composants/Elements";
@@ -38,6 +39,7 @@ export const Montage: React.FC<{ timeline: any }> = ({ timeline: T }) => {
   const frame = useCurrentFrame();
   const { width } = useVideoConfig();
   const vols = useVolumesMusique(T);
+  usePolicesLocales(T.polices);
   const cam = effetCamera(T.transitions, frame, width);
   const e = T.etalonnage ?? {};
   const filtre = `contrast(${e.contraste ?? 1.04}) saturate(${e.saturation ?? 1.06}) brightness(${e.luminosite ?? 1}) sepia(${e.chaleur ?? 0}) hue-rotate(${e.teinte ?? 0}deg)`;

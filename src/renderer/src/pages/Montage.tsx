@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { EtapeMontage, LigneMontage, Projet } from '../../../shared/types'
+import type { EtapeMontage, Genre, LigneMontage, Projet, Style } from '../../../shared/types'
 import { BarreHaut } from '../composants/Coquille'
 import { Icone } from '../composants/Icone'
 import { Pastille } from './Bienvenue'
@@ -11,6 +11,13 @@ const FORMATS: { id: Projet['format']; nom: string; usage: string }[] = [
   { id: '4x5', nom: '4:5', usage: 'Fil Instagram' }
 ]
 
+const GENRES: { id: Genre; nom: string; texte: string; format: Projet['format'] }[] = [
+  { id: 'formation', nom: 'Formation', texte: 'Chapitres, encarts, captures, schémas', format: '16x9' },
+  { id: 'youtube', nom: 'YouTube', texte: 'Face caméra, plus de rythme', format: '16x9' },
+  { id: 'court', nom: 'Court', texte: 'Shorts, Reels, TikTok', format: '9x16' },
+  { id: 'pub', nom: 'Pub', texte: 'Courte, centrée sur le produit', format: '9x16' }
+]
+
 const STATUTS: Record<Projet['statut'], { nom: string; ton: 'ok' | 'v' | 'g' }> = {
   brouillon: { nom: 'Sans rush', ton: 'g' },
   pret: { nom: 'Prêt à monter', ton: 'v' },
@@ -18,7 +25,7 @@ const STATUTS: Record<Projet['statut'], { nom: string; ton: 'ok' | 'v' | 'g' }> 
   monte: { nom: 'Monté', ton: 'ok' }
 }
 
-const SUGGESTIONS = ['Sous-titres mot à mot', 'Zoom sur les mots clés', "Captures d'écran quand je montre un outil", 'Musique calme', 'Chapitres']
+const SUGGESTIONS = ['Chapitres pour chaque partie', "Captures d'écran quand je parle d'un outil", 'Sous-titres', 'Pas de musique', 'Je m’appelle …']
 
 const taille = (o: number) => (o > 1e9 ? `${(o / 1e9).toFixed(1)} Go` : o > 1e6 ? `${Math.round(o / 1e6)} Mo` : `${Math.max(1, Math.round(o / 1e3))} Ko`)
 
@@ -88,8 +95,8 @@ export function Montage({ onChange }: { onChange: () => void }) {
       {creation && (
         <NouvelleVideo
           onFermer={() => setCreation(false)}
-          onCreer={async (titre, format) => {
-            const p = await window.cliplex.projets.creer(titre, format)
+          onCreer={async (titre, format, genre) => {
+            const p = await window.cliplex.projets.creer(titre, format, genre)
             setCreation(false)
             setActif(p.id)
             await charger()
@@ -128,7 +135,12 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
   const [consignes, setConsignes] = useState(projet.consignes)
   const [lignes, setLignes] = useState<LigneMontage[]>([])
   const [etape, setEtape] = useState<EtapeMontage | undefined>(projet.etape)
+  const [style, setStyle] = useState<Style | null>(null)
   const enCours = projet.statut === 'montage'
+
+  useEffect(() => {
+    window.cliplex.style.lire().then(setStyle)
+  }, [])
 
   useEffect(
     () =>
@@ -200,8 +212,33 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
             </div>
           </div>
           <div>
+            <span className="libelle">Genre</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {GENRES.map((g) => (
+                <button key={g.id} onClick={() => modifier({ genre: g.id })} className={`rounded-lg border px-2.5 py-2 text-left ${g.id === (projet.genre ?? 'formation') ? 'border-violet shadow-[0_0_0_3px_#F2EAFC]' : 'border-bord hover:border-[#D4D4D8]'}`}>
+                  <b className="block text-[12.5px] font-semibold">{g.nom}</b>
+                  <small className="text-[11px] leading-tight text-muet">{g.texte}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="libelle">Style</span>
+            {style?.existe ? (
+              <label className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-bord p-3">
+                <input type="checkbox" className="h-4 w-4 accent-[#8E44E0]" checked={projet.avecStyle !== false} onChange={(e) => modifier({ avecStyle: e.target.checked })} />
+                <span className="min-w-0">
+                  <b className="block truncate text-[13px] font-semibold">Appliquer mon style</b>
+                  <small className="block truncate text-[11.5px] text-muet">{style.nom}</small>
+                </span>
+              </label>
+            ) : (
+              <p className="rounded-[10px] border border-dashed border-[#D4D4D8] p-3 text-[12px] leading-snug text-muet">Pas encore de style : le montage restera sobre. Ajoute des inspirations pour que Claude apprenne ce que tu aimes.</p>
+            )}
+          </div>
+          <div>
             <span className="libelle">Tes consignes</span>
-            <textarea className="champ min-h-[110px] resize-none leading-relaxed" value={consignes} placeholder="Ex. : mets en avant « 10 minutes », musique calme, montre l'outil quand j'en parle." onChange={(e) => setConsignes(e.target.value)} onBlur={() => modifier({ consignes })} />
+            <textarea className="champ min-h-[110px] resize-none leading-relaxed" value={consignes} placeholder="Ex. : je m'appelle Léa, formatrice. Montre le site de Supabase quand j'en parle. Trois chapitres." onChange={(e) => setConsignes(e.target.value)} onBlur={() => modifier({ consignes })} />
             <div className="mt-2 flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button key={s} onClick={() => ajouter(s)} className="rounded-full border border-dashed border-[#D4D4D8] px-2.5 py-1 text-[12px] font-medium text-encre-2 hover:border-violet-clair hover:text-violet">
@@ -267,27 +304,47 @@ function Cadre({ format, vide }: { format: Projet['format']; vide: boolean }) {
   )
 }
 
-function NouvelleVideo({ onFermer, onCreer }: { onFermer: () => void; onCreer: (titre: string, format: Projet['format']) => void }) {
+function NouvelleVideo({ onFermer, onCreer }: { onFermer: () => void; onCreer: (titre: string, format: Projet['format'], genre: Genre) => void }) {
   const [titre, setTitre] = useState('')
-  const [format, setFormat] = useState<Projet['format']>('9x16')
+  const [genre, setGenre] = useState<Genre>('formation')
+  const [format, setFormat] = useState<Projet['format']>('16x9')
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onFermer}>
       <div className="flex h-full w-[420px] flex-col bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-bord-2 px-6 pb-4 pt-6">
           <div className="text-[17px] font-bold">Nouvelle vidéo</div>
-          <p className="mt-1 text-[12.5px] text-muet">Un titre et un format. Tu ajoutes le rush juste après.</p>
+          <p className="mt-1 text-[12.5px] text-muet">Un titre, un genre, un format. Tu ajoutes le rush juste après.</p>
         </div>
         <form
           className="flex flex-1 flex-col gap-5 px-6 py-5"
           onSubmit={(e) => {
             e.preventDefault()
-            if (titre.trim()) onCreer(titre, format)
+            if (titre.trim()) onCreer(titre, format, genre)
           }}
         >
           <label>
             <span className="libelle">Titre</span>
             <input autoFocus className="champ" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. : Pourquoi j'utilise Supabase" />
           </label>
+          <div>
+            <span className="libelle">Genre</span>
+            <div className="grid grid-cols-2 gap-2">
+              {GENRES.map((g) => (
+                <button
+                  type="button"
+                  key={g.id}
+                  onClick={() => {
+                    setGenre(g.id)
+                    setFormat(g.format)
+                  }}
+                  className={`rounded-[10px] border p-3 text-left ${g.id === genre ? 'border-violet shadow-[0_0_0_3px_#F2EAFC]' : 'border-bord hover:border-[#D4D4D8]'}`}
+                >
+                  <b className="block text-[14px] font-semibold">{g.nom}</b>
+                  <small className="text-[12px] text-muet">{g.texte}</small>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <span className="libelle">Format</span>
             <div className="grid grid-cols-2 gap-2">

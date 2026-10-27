@@ -7,9 +7,9 @@
 #   rN/planches/        1 image/s, 5x4 = 20 s par planche (pour regarder le rush)
 #   rN/silences.txt     silences détectés
 set -e
-# Outils installés par Cliplex : CLIPLEX_OUTILS (modèle whisper, modèle RNNoise, Python avec numpy).
+# Outils installés par Cliplex : CLIPLEX_OUTILS (ffmpeg, modèle whisper, modèle RNNoise, Python avec numpy et whisper).
 ICI="$(cd "$(dirname "$0")" && pwd)"; OUTILS="${CLIPLEX_OUTILS:?CLIPLEX_OUTILS manquant}"
-PY="$OUTILS/python/bin/python3"; [ -x "$PY" ] || PY=python3
+PY="$OUTILS/python/bin/python"; [ -x "$PY" ] || PY=python3
 M="$1"; shift; mkdir -p "$M/sources"; i=1
 for R in "$@"; do
   id="r$i"; D="$M/$id"; mkdir -p "$D/planches"

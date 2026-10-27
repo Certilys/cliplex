@@ -1,33 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
-import type { EtatClaude, LigneJournal, Objectif, Outil, Reglages } from '../../../shared/types'
+import type { EtatChrome, EtatClaude, LigneJournal, Objectif, Outil, Reglages } from '../../../shared/types'
 import { Icone, type NomIcone } from '../composants/Icone'
 import { Logo } from '../composants/Logo'
+import { ZoneInspirations } from './Inspirations'
 
 const ETAPES = [
-  { titre: 'Ce que tu veux faire', duree: '30 s' },
-  { titre: 'Ton dossier de travail', duree: '10 s' },
+  { titre: 'Ce qu’il te faut', duree: '20 s' },
+  { titre: 'Ce que tu veux faire', duree: '20 s' },
+  { titre: 'Ton dossier Cliplex', duree: '10 s' },
   { titre: 'Installation des outils', duree: '5 min' },
-  { titre: 'Connexion à Claude', duree: '1 min' }
+  { titre: 'Connexion à Claude', duree: '1 min' },
+  { titre: 'Tes inspirations', duree: '5 min' }
 ]
+const DERNIERE = ETAPES.length - 1
 
 const OBJECTIFS: { id: Objectif; icone: NomIcone; titre: string; texte: string }[] = [
-  { id: 'montage', icone: 'lecture', titre: 'Monter mes vidéos', texte: 'Tu déposes ton rush, Cliplex fait le montage : sous-titres, animations, sons.' },
-  { id: 'planification', icone: 'calendrier', titre: 'Planifier mes contenus', texte: 'Idées, scripts et calendrier de publication au même endroit.' },
-  { id: 'tournage', icone: 'telephone', titre: 'Tourner avec le prompteur', texte: 'Ton script qui défile sur ton téléphone, guidé par ta voix.' },
-  { id: 'formation', icone: 'formation', titre: 'Faire des formations', texte: 'Vidéos 16:9 avec schémas, écran partagé et chapitres.' },
-  { id: 'youtube', icone: 'youtube', titre: 'YouTube', texte: 'Face caméra, titre, description, chapitres et miniatures.' },
-  { id: 'courts', icone: 'vertical', titre: 'Shorts, Reels, TikTok', texte: 'Formats verticaux courts, rythmés, prêts à publier.' }
+  { id: 'formation', icone: 'formation', titre: 'Faire des formations', texte: 'Vidéos 16:9 avec chapitres, encarts, captures d’écran et schémas.' },
+  { id: 'youtube', icone: 'youtube', titre: 'YouTube', texte: 'Face caméra, rythmé, avec les zooms et les textes qui t’aident à expliquer.' },
+  { id: 'courts', icone: 'vertical', titre: 'Shorts, Reels, TikTok', texte: 'Formats verticaux courts, rythmés, prêts à publier.' },
+  { id: 'montage', icone: 'lecture', titre: 'Monter vite', texte: 'Tu déposes ton rush déjà coupé, Cliplex fait le montage.' },
+  { id: 'planification', icone: 'calendrier', titre: 'Planifier mes contenus', texte: 'Idées, scripts et calendrier de publication. Bientôt.' },
+  { id: 'tournage', icone: 'telephone', titre: 'Tourner avec le prompteur', texte: 'Ton script qui défile sur ton téléphone. Bientôt.' }
 ]
 
 export function Bienvenue({ reglages, onFini }: { reglages: Reglages; onFini: (r: Reglages) => void }) {
   const [etape, setEtape] = useState(() => Number(new URLSearchParams(location.search).get('etape')) || 0)
-  const [objectifs, setObjectifs] = useState<Objectif[]>(reglages.objectifs.length ? reglages.objectifs : ['montage', 'courts'])
+  const [objectifs, setObjectifs] = useState<Objectif[]>(reglages.objectifs.length ? reglages.objectifs : ['formation'])
   const [dossier, setDossier] = useState<string | null>(reglages.dossier)
 
   const suivant = async () => {
-    if (etape === 0) await window.cliplex.reglages.ecrire({ objectifs })
-    if (etape === 1) await window.cliplex.reglages.ecrire({ dossier })
-    if (etape === 3) return onFini(await window.cliplex.reglages.ecrire({ accueilFini: true }))
+    if (etape === 1) await window.cliplex.reglages.ecrire({ objectifs })
+    if (etape === 2) await window.cliplex.reglages.ecrire({ dossier })
+    if (etape === DERNIERE) return onFini(await window.cliplex.reglages.ecrire({ accueilFini: true }))
     setEtape(etape + 1)
   }
 
@@ -41,7 +45,7 @@ export function Bienvenue({ reglages, onFini }: { reglages: Reglages; onFini: (r
             <br />
             <span className="text-violet-clair">Cliplex monte.</span>
           </h1>
-          <p className="mt-3.5 text-[14px] leading-relaxed text-[#A8A3B5]">Quatre étapes et ton Mac est prêt. Tout ce qui est installé est montré et expliqué.</p>
+          <p className="mt-3.5 text-[14px] leading-relaxed text-[#A8A3B5]">Six étapes et ton Mac est prêt. Tout ce qui est installé est montré et expliqué, et reste dans un seul dossier.</p>
         </div>
         <ol className="mx-10 mt-11 flex flex-col gap-1">
           {ETAPES.map((e, i) => (
@@ -63,11 +67,15 @@ export function Bienvenue({ reglages, onFini }: { reglages: Reglages; onFini: (r
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="glisser h-10 flex-none" />
         <div className="flex min-h-0 flex-1 flex-col px-[72px] pb-9 pt-8">
-          <div className="surtitre">Étape {etape + 1} sur 4</div>
-          {etape === 0 && <EtapeObjectifs choisis={objectifs} onChange={setObjectifs} />}
-          {etape === 1 && <EtapeDossier dossier={dossier} onChange={setDossier} />}
-          {etape === 2 && <EtapeInstallation />}
-          {etape === 3 && <EtapeClaude />}
+          <div className="surtitre">
+            Étape {etape + 1} sur {ETAPES.length}
+          </div>
+          {etape === 0 && <EtapeBesoins />}
+          {etape === 1 && <EtapeObjectifs choisis={objectifs} onChange={setObjectifs} />}
+          {etape === 2 && <EtapeDossier dossier={dossier} onChange={setDossier} />}
+          {etape === 3 && <EtapeInstallation />}
+          {etape === 4 && <EtapeClaude />}
+          {etape === 5 && <EtapeInspirations />}
           <div className="mt-auto flex items-center justify-between border-t border-bord pt-6">
             {etape > 0 ? (
               <button className="btn-fantome" onClick={() => setEtape(etape - 1)}>
@@ -77,13 +85,80 @@ export function Bienvenue({ reglages, onFini }: { reglages: Reglages; onFini: (r
             ) : (
               <span />
             )}
-            <button className="btn-noir" onClick={suivant} disabled={etape === 0 && objectifs.length === 0}>
-              {etape === 3 ? 'Ouvrir Cliplex' : 'Continuer'}
-              <Icone nom="fleche" />
-            </button>
+            <div className="flex gap-2">
+              {etape === DERNIERE && (
+                <button className="btn-fantome" onClick={suivant}>
+                  Plus tard
+                </button>
+              )}
+              <button className="btn-noir" onClick={suivant} disabled={etape === 1 && objectifs.length === 0}>
+                {etape === DERNIERE ? 'Ouvrir Cliplex' : 'Continuer'}
+                <Icone nom="fleche" />
+              </button>
+            </div>
           </div>
         </div>
       </section>
+    </div>
+  )
+}
+
+function EtapeBesoins() {
+  const [claude, setClaude] = useState<EtatClaude | null>(null)
+  const [chrome, setChrome] = useState<EtatChrome | null>(null)
+  useEffect(() => {
+    window.cliplex.claude.etat().then(setClaude)
+    window.cliplex.claude.chrome().then(setChrome)
+  }, [])
+  return (
+    <>
+      <Titre titre="Ce qu'il te faut" texte="Cliplex est gratuit. Le montage est fait par un agent IA que tu as déjà, avec ton propre abonnement : Cliplex ne voit jamais tes identifiants." />
+      <div className="mt-7 max-w-[760px]">
+        <span className="libelle">Un agent IA</span>
+        <div className="flex flex-col gap-2">
+          <Besoin
+            icone="agent"
+            titre="Claude Code"
+            texte="Disponible. Il faut un compte Claude avec un abonnement qui inclut Claude Code (Pro ou Max). S'il n'est pas sur ton Mac, Cliplex l'installe dans son dossier."
+            etat={!claude ? <Pastille ton="g">Vérification…</Pastille> : claude.connecte ? <Pastille ton="ok">Connecté</Pastille> : claude.installe ? <Pastille ton="v">Trouvé sur ton Mac</Pastille> : <Pastille ton="g">Installé à l'étape 4</Pastille>}
+          />
+          <Besoin icone="agent" titre="Codex (ChatGPT) et d'autres agents" texte="Arrivent dans une prochaine version. Tu pourras choisir celui que tu préfères." etat={<Pastille ton="g">Bientôt</Pastille>} grise />
+        </div>
+        <span className="libelle mt-6">Ton Mac</span>
+        <div className="flex flex-col gap-2">
+          <Besoin icone="disque" titre="Une puce Apple (M1 ou plus récente) et environ 2 Go libres" texte="Pour les outils de montage (ffmpeg, transcription, moteur d'animation), tous rangés dans ton dossier Cliplex." />
+          <Besoin
+            icone="globe"
+            titre="Chrome avec l'extension Claude (facultatif)"
+            texte="Seulement pour donner des liens YouTube en inspiration : Claude ouvre la vidéo dans Chrome et la regarde. Sans elle, tu peux déposer des vidéos ou des images."
+            etat={chrome?.extension ? <Pastille ton="ok">Extension trouvée</Pastille> : <Pastille ton="g">Facultatif</Pastille>}
+          />
+        </div>
+      </div>
+    </>
+  )
+}
+
+function Besoin({ icone, titre, texte, etat, grise }: { icone: NomIcone; titre: string; texte: string; etat?: React.ReactNode; grise?: boolean }) {
+  return (
+    <div className={`carte grid grid-cols-[40px_1fr_auto] items-center gap-3.5 p-4 ${grise ? 'opacity-60' : ''}`}>
+      <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-violet-fond text-violet">
+        <Icone nom={icone} taille={19} />
+      </span>
+      <span>
+        <b className="block text-[14px] font-semibold">{titre}</b>
+        <span className="mt-0.5 block text-[12.5px] leading-normal text-muet">{texte}</span>
+      </span>
+      {etat}
+    </div>
+  )
+}
+
+function EtapeInspirations() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-4">
+      <Titre titre="Montre à Claude ce que tu aimes" texte="Dépose deux à cinq vidéos dont le montage te plaît (les tiennes ou celles des autres), ou colle des liens YouTube. Claude les regarde, en tire ton style, puis te pose ses questions. Tu peux aussi le faire plus tard." />
+      <ZoneInspirations compact />
     </div>
   )
 }
@@ -136,7 +211,7 @@ function EtapeDossier({ dossier, onChange }: { dossier: string | null; onChange:
   }
   return (
     <>
-      <Titre titre="Où ranger tes vidéos ?" texte="Tes rushs, tes montages et les outils de Cliplex iront dans ce dossier. Tout reste sur ton Mac." />
+      <Titre titre="Un seul dossier pour tout" texte="Les outils, tes vidéos, tes inspirations et ton style iront dans ce dossier, et nulle part ailleurs. Tout reste sur ton Mac." />
       <div className="carte mt-7 flex items-center gap-4 p-4">
         <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-violet-fond text-violet">
           <Icone nom="dossier" taille={20} />
@@ -151,12 +226,14 @@ function EtapeDossier({ dossier, onChange }: { dossier: string | null; onChange:
       </div>
       <div className="carte mt-3 p-4 font-mono text-[12px] leading-[1.8] text-encre-2">
         <div>{dossier ?? '~/Cliplex'}/</div>
-        <div className="pl-4">projets/<span className="text-doux">   une vidéo = un dossier</span></div>
-        <div className="pl-8">ma-video/rushs/<span className="text-doux">   tes vidéos brutes</span></div>
-        <div className="pl-8">ma-video/montage/<span className="text-doux">   versions, sous-titres, plan</span></div>
+        <div className="pl-4">outils/<span className="text-doux">   ffmpeg, transcription, moteur d'animation, Claude Code si besoin</span></div>
+        <div className="pl-4">projets/<span className="text-doux">   une vidéo = un dossier (rushs, montage)</span></div>
+        <div className="pl-4">inspirations/<span className="text-doux">   les vidéos que tu aimes et ce que Claude en a tiré</span></div>
+        <div className="pl-4">style/<span className="text-doux">   ton style de montage</span></div>
+        <div className="pl-4">bibliotheque/<span className="text-doux">   tes polices, sons et musiques</span></div>
       </div>
       <p className="mt-3 text-[12.5px] leading-normal text-muet">Ce sont des fichiers normaux : tu peux les ouvrir, les copier ou les sauvegarder comme tu veux. Si tu choisis un dossier comme le Bureau, Cliplex crée dedans un sous-dossier « Cliplex » pour ne rien éparpiller.</p>
-      <p className="mt-1.5 text-[12.5px] leading-normal text-muet">Les outils (modèle de transcription, Python) vont à part, dans <code className="font-mono text-[12px] text-encre-2">~/Library/Application Support/Cliplex/outils</code>.</p>
+      <p className="mt-1.5 text-[12.5px] leading-normal text-muet">Pour tout désinstaller : supprime l'app et ce dossier. Rien d'autre n'est installé sur ton Mac.</p>
     </>
   )
 }
@@ -192,9 +269,8 @@ function EtapeInstallation() {
     setTout(true)
     for (const o of await window.cliplex.outils.lister()) {
       if (o.etat === 'present') continue
-      const ok = await installer(o.id)
-      // Homebrew se termine dans le Terminal : on s'arrête là, la suite en dépend.
-      if (!ok) break
+      // Un outil qui échoue arrête la suite : les suivants peuvent en dépendre.
+      if (!(await installer(o.id))) break
     }
     setTout(false)
   }
@@ -205,7 +281,7 @@ function EtapeInstallation() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-end justify-between gap-6">
-        <Titre titre="On prépare ton Mac" texte="Des outils libres et reconnus. Pour chacun : ce qu'il fait dans ton montage, et la commande exacte lancée." />
+        <Titre titre="On prépare ton Mac" texte="Des outils libres et reconnus, installés dans ton dossier Cliplex, sans mot de passe. Pour chacun : ce qu'il fait dans ton montage, et la commande exacte lancée." />
         <button className="btn-violet flex-none" onClick={toutInstaller} disabled={tout || prets === outils.length}>
           {prets === outils.length && outils.length ? 'Tout est prêt' : tout ? 'Installation…' : 'Tout installer'}
         </button>
@@ -286,7 +362,7 @@ function LigneOutil({ outil: o, onInstaller, occupe }: { outil: Outil; onInstall
         <Pastille ton="v">En cours</Pastille>
       ) : (
         <button className="btn-blanc h-8 px-3 text-[12.5px]" onClick={onInstaller} disabled={occupe}>
-          {o.terminal ? 'Ouvrir le Terminal' : o.etat === 'erreur' ? 'Réessayer' : 'Installer'}
+          {o.etat === 'erreur' ? 'Réessayer' : 'Installer'}
         </button>
       )}
     </div>
@@ -305,8 +381,12 @@ export function Pastille({ ton, children }: { ton: 'ok' | 'v' | 'g'; children: R
 
 function EtapeClaude() {
   const [etat, setEtat] = useState<EtatClaude | null>(null)
+  const [chrome, setChrome] = useState<EtatChrome | null>(null)
   useEffect(() => {
-    const lire = () => window.cliplex.claude.etat().then(setEtat)
+    const lire = () => {
+      window.cliplex.claude.etat().then(setEtat)
+      window.cliplex.claude.chrome().then(setChrome)
+    }
     lire()
     const t = setInterval(lire, 3000)
     return () => clearInterval(t)
@@ -335,6 +415,24 @@ function EtapeClaude() {
       </div>
       <div className="mt-3 rounded-xl border border-dashed border-bord p-4 text-[12.5px] leading-relaxed text-muet">
         « Me connecter » ouvre le Terminal avec la commande <code className="font-mono text-encre-2">claude auth login</code>. Ton navigateur s'ouvre, tu te connectes à ton compte Claude, et Cliplex le détecte tout seul.
+      </div>
+      <div className="carte mt-6 flex items-center gap-4 p-5">
+        <span className="grid h-11 w-11 place-items-center rounded-[10px] bg-fond text-encre-2">
+          <Icone nom="globe" taille={20} />
+        </span>
+        <div className="flex-1">
+          <div className="text-[14px] font-semibold">Claude dans Chrome (facultatif)</div>
+          <div className="text-[12.5px] leading-normal text-muet">
+            {!chrome ? 'Vérification…' : !chrome.chrome ? 'Chrome n’est pas installé. Tu pourras quand même déposer des vidéos et des images.' : chrome.extension ? 'Extension Claude trouvée : Claude pourra regarder tes liens YouTube.' : 'Pour que Claude regarde tes liens YouTube, installe l’extension Claude dans Chrome et connecte-la à ton compte.'}
+          </div>
+        </div>
+        {chrome?.extension ? (
+          <Pastille ton="ok">Prête</Pastille>
+        ) : (
+          <button className="btn-blanc" disabled={!chrome?.chrome} onClick={() => window.cliplex.claude.installerExtension()}>
+            Installer l'extension
+          </button>
+        )}
       </div>
     </>
   )
