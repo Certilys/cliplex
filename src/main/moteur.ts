@@ -2,7 +2,8 @@ import { app } from 'electron'
 import { spawn } from 'child_process'
 import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { EtapeMontage, Genre, Projet } from '../shared/types'
+import type { Activite, EtapeMontage, Genre, Projet } from '../shared/types'
+import { lecteurClaude } from './activite'
 import { env } from './environnement'
 import { styleDuMontage } from './inspirations'
 import { dossierProjet, modifierProjet } from './projets'
@@ -21,7 +22,7 @@ export function dossierStudio(): string {
 
 const FORMATS: Record<Projet['format'], [number, number]> = { '9x16': [1080, 1920], '16x9': [1920, 1080], '1x1': [1080, 1080], '4x5': [1080, 1350] }
 
-export type Journal = (etape: EtapeMontage, texte: string) => void
+export type Journal = (etape: EtapeMontage, a: Activite) => void
 
 const enCours = new Map<string, () => void>()
 
@@ -31,7 +32,10 @@ function variables(): NodeJS.ProcessEnv {
     CLIPLEX_MOTEUR: dossierMoteur(),
     CLIPLEX_OUTILS: dossierOutils(),
     CLIPLEX_STUDIO: dossierStudio(),
-    CLIPLEX_POLICES: sousDossier(join('bibliotheque', 'polices'))
+    CLIPLEX_POLICES: sousDossier(join('bibliotheque', 'polices')),
+    // Un brouillon peut prendre plusieurs minutes : Claude l'attend au lieu de le lancer en arrière-plan.
+    BASH_DEFAULT_TIMEOUT_MS: '1200000',
+    BASH_MAX_TIMEOUT_MS: '1800000'
   }
 }
 
@@ -57,24 +61,6 @@ function executer(cmd: string, args: string[], cwd: string, ligne: (t: string) =
       resolve(1)
     })
   })
-}
-
-// Traduit les actions de Claude Code (flux stream-json) en phrases lisibles.
-function decrireOutil(nom: string, entree: any): string | null {
-  const f = String(entree?.file_path ?? entree?.path ?? '')
-  const court = f.split('/').slice(-2).join('/')
-  if (nom === 'Read') return f.includes('planche') ? `Regarde ${court}` : `Lit ${court}`
-  if (nom === 'Write' || nom === 'Edit') return f.endsWith('plan.json') ? 'Écrit le plan de montage' : `Écrit ${court}`
-  if (nom === 'WebSearch') return `Cherche sur internet : ${String(entree?.query ?? '').slice(0, 80)}`
-  if (nom === 'WebFetch') return `Lit ${String(entree?.url ?? '').slice(0, 80)}`
-  if (nom === 'Bash') {
-    const c = String(entree?.command ?? '').trim()
-    if (c.startsWith('./rendre-brouillon.sh')) return 'Rend un brouillon pour vérifier'
-    if (c.startsWith('curl')) return 'Télécharge une illustration'
-    return `Lance : ${c.split('\n')[0].slice(0, 80)}`
-  }
-  if (nom === 'Glob' || nom === 'Grep') return null
-  return nom
 }
 
 const GENRES: Record<Genre, string> = {
@@ -104,10 +90,12 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
   mkdirSync(montage, { recursive: true })
   // Chaque montage garde son journal complet (montage/journal.txt), utile pour comprendre un échec.
   writeFileSync(join(montage, 'journal.txt'), `Montage du ${new Date().toLocaleString('fr-FR')}\n`)
-  const journal: Journal = (etape, texte) => {
-    appendFileSync(join(montage, 'journal.txt'), `[${etape}] ${texte}\n`)
-    envoyer(etape, texte)
+  const journal: Journal = (etape, a) => {
+    appendFileSync(join(montage, 'journal.txt'), `[${etape}] ${a.texte}\n`)
+    envoyer(etape, a)
   }
+  const info = (etape: EtapeMontage, texte: string, icone?: string) => journal(etape, { genre: 'info', texte, icone })
+  const technique = (etape: EtapeMontage) => (texte: string) => journal(etape, { genre: 'technique', texte })
   const rushs = readdirSync(join(dossier, 'rushs'))
     .filter((f) => /\.(mp4|mov|m4v|webm|mkv)$/i.test(f))
     .sort()
@@ -118,7 +106,7 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
 
   const echec = (etape: EtapeMontage, message: string): Projet => {
     enCours.delete(id)
-    journal(etape, message)
+    journal(etape, { genre: 'erreur', texte: message })
     return modifierProjet(id, { statut: 'pret', etape: undefined, erreur: message })
   }
 
@@ -127,10 +115,10 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
     const empreinte = rushs.map((r) => r.split('/').pop()).join('|')
     const marque = join(montage, '.rushs')
     const deja = existsSync(join(montage, 'transcript.txt')) && existsSync(marque) && readFileSync(marque, 'utf8').trim() === empreinte
-    if (deja) journal('preparation', 'Rushs déjà préparés.')
+    if (deja) info('preparation', 'Rushs déjà préparés.', 'coche')
     else {
-      journal('preparation', `Préparation de ${rushs.length} rush${rushs.length > 1 ? 's' : ''} : voix, transcription, images.`)
-      const code = await executer(join(moteur, 'outils', 'preparer.sh'), [montage, ...rushs], dossier, (t) => journal('preparation', t), id)
+      info('preparation', `Préparation de ${rushs.length} rush${rushs.length > 1 ? 's' : ''} : voix nettoyée, transcription mot à mot, images.`, 'micro')
+      const code = await executer(join(moteur, 'outils', 'preparer.sh'), [montage, ...rushs], dossier, technique('preparation'), id)
       if (code !== 0) return echec('preparation', 'La préparation a échoué.')
       writeFileSync(join(montage, '.rushs'), empreinte)
     }
@@ -148,7 +136,7 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
     if (style) {
       writeFileSync(join(montage, 'style.md'), style.texte)
       writeFileSync(join(montage, 'theme.json'), JSON.stringify(style.theme ?? {}, null, 2))
-      journal('claude', 'Ton style est appliqué à ce montage.')
+      info('claude', 'Ton style est appliqué à ce montage.', 'reglages')
     } else {
       rmSync(join(montage, 'style.md'), { force: true })
       rmSync(join(montage, 'theme.json'), { force: true })
@@ -156,8 +144,8 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
     mkdirSync(join(montage, 'assets'), { recursive: true })
     writeFileSync(join(montage, 'consignes.txt'), consignes(p, Boolean(style)))
     writeFileSync(join(montage, 'rendre-brouillon.sh'), `#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "${join(moteur, 'outils', 'rendre.sh')}" "$(dirname "$0")" --brouillon\n`, { mode: 0o755 })
-    journal('claude', 'Claude Code lit le rush et écrit le montage.')
-    let resultat = ''
+    info('claude', 'Claude lit ton rush et écrit le montage.', 'agent')
+    const lecteur = lecteurClaude((a) => journal('claude', a))
     const code = await executer(
       'claude',
       [
@@ -170,35 +158,20 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
         'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash(./rendre-brouillon.sh:*),Bash(ls:*),Bash(mkdir:*),Bash(curl:*),Bash(ffmpeg:*),Bash(ffprobe:*)'
       ],
       montage,
-      (t) => {
-        try {
-          const m = JSON.parse(t)
-          if (m.type === 'assistant')
-            for (const c of m.message?.content ?? []) {
-              if (c.type === 'text' && c.text.trim()) journal('claude', c.text.trim())
-              if (c.type === 'tool_use') {
-                const d = decrireOutil(c.name, c.input)
-                if (d) journal('claude', d)
-              }
-            }
-          if (m.type === 'result') resultat = m.subtype
-        } catch {
-          journal('claude', t)
-        }
-      },
+      lecteur.ligne,
       id
     )
-    if (code !== 0 || resultat !== 'success' || !existsSync(join(montage, 'plan.json'))) return echec('claude', 'Claude Code n’a pas terminé le montage.')
+    if (code !== 0 || lecteur.etat.resultat !== 'success' || !existsSync(join(montage, 'plan.json'))) return echec('claude', 'Claude Code n’a pas terminé le montage.')
 
     // 3. Rendu final en pleine qualité.
     p = modifierProjet(id, { etape: 'rendu' })
-    journal('rendu', 'Rendu final en pleine qualité.')
-    const rendu = await executer(join(moteur, 'outils', 'rendre.sh'), [montage], montage, (t) => journal('rendu', t), id)
+    info('rendu', 'Rendu final en pleine qualité.', 'lecture')
+    const rendu = await executer(join(moteur, 'outils', 'rendre.sh'), [montage], montage, technique('rendu'), id)
     // Le format vient du plan (consignes.txt) : la sortie s'appelle toujours montage.mp4.
     const video = 'montage.mp4'
     if (rendu !== 0 || !existsSync(join(montage, video))) return echec('rendu', 'Le rendu final a échoué.')
     enCours.delete(id)
-    journal('fini', 'Vidéo prête.')
+    journal('fini', { genre: 'succes', texte: 'Vidéo prête.' })
     return modifierProjet(id, { statut: 'monte', etape: undefined, video: `montage/${video}` })
   } catch (e) {
     return echec('preparation', e instanceof Error ? e.message : String(e))

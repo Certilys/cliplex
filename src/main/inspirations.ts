@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { basename, extname, join } from 'path'
-import type { Inspiration, Question, Style } from '../shared/types'
+import type { Activite, Inspiration, Question, Style } from '../shared/types'
+import { lecteurClaude } from './activite'
 import { env } from './environnement'
 import { dossierMoteur, dossierStudio } from './moteur'
 import { sousDossier } from './reglages'
@@ -16,7 +17,7 @@ import { sousDossier } from './reglages'
 const VIDEO = /\.(mp4|mov|m4v|webm|mkv)$/i
 const IMAGE = /\.(jpe?g|png|webp|gif|heic)$/i
 
-export type JournalInspiration = (id: string, texte: string) => void
+export type JournalInspiration = (id: string, a: Activite) => void
 
 const racine = () => sousDossier('inspirations')
 const dossierStyle = () => sousDossier('style')
@@ -60,6 +61,8 @@ export function listerInspirations(): Inspiration[] {
   return readdirSync(racine())
     .map(lire)
     .filter((i): i is Inspiration => i !== null)
+    // Une analyse coupée (app fermée en route) se relance.
+    .map((i) => (i.etat === 'analyse' && !enCours.has(i.id) ? modifier(i.id, { etat: 'erreur', erreur: 'Analyse interrompue.' }) : i))
     .sort((a, b) => b.ajouteLe.localeCompare(a.ajouteLe))
 }
 
@@ -119,44 +122,6 @@ function executer(cmd: string, args: string[], cwd: string, ligne: (t: string) =
   })
 }
 
-/** Lit le flux stream-json de Claude Code : rend une phrase par action utile, garde le résultat. */
-function lecteurClaude(journal: (t: string) => void) {
-  const etat = { resultat: '' }
-  const ligne = (t: string) => {
-    try {
-      const m = JSON.parse(t)
-      if (m.type === 'assistant')
-        for (const c of m.message?.content ?? []) {
-          if (c.type === 'text' && c.text.trim()) journal(c.text.trim())
-          if (c.type === 'tool_use') {
-            const d = decrire(c.name, c.input)
-            if (d) journal(d)
-          }
-        }
-      if (m.type === 'result') etat.resultat = m.subtype
-    } catch {
-      if (t.trim()) journal(t.trim())
-    }
-  }
-  return { ligne, etat }
-}
-
-function decrire(nom: string, entree: any): string | null {
-  const f = String(entree?.file_path ?? '').split('/').slice(-2).join('/')
-  if (nom === 'Read') return f.includes('planche') || /\.(jpe?g|png|webp)$/i.test(f) ? `Regarde ${f}` : `Lit ${f}`
-  if (nom === 'Write' || nom === 'Edit') return `Écrit ${f}`
-  if (nom.startsWith('mcp__claude-in-chrome__')) {
-    const action = nom.replace('mcp__claude-in-chrome__', '')
-    if (action === 'navigate') return `Ouvre ${String(entree?.url ?? '').slice(0, 80)}`
-    if (action === 'computer') return entree?.action === 'screenshot' ? 'Capture une image de la vidéo' : entree?.action === 'zoom' ? 'Regarde un détail de près' : null
-    if (action === 'get_page_text') return 'Lit la page'
-    if (action === 'javascript_tool') return 'Avance dans la vidéo'
-    return null
-  }
-  if (nom === 'Bash') return `Lance : ${String(entree?.command ?? '').split('\n')[0].slice(0, 80)}`
-  return null
-}
-
 const PROMPTS: Record<Inspiration['type'], string> = {
   video: 'Analyse cette inspiration en suivant CLAUDE.md : regarde toutes les planches de analyse/, lis analyse/dossier.md, puis écris fiche.md et regles.json.',
   image: 'Analyse cette image d’inspiration en suivant CLAUDE.md, puis écris fiche.md et regles.json.',
@@ -170,7 +135,7 @@ export async function analyserInspiration(id: string, journal: JournalInspiratio
   const d = dossierInspiration(id)
   const moteur = join(dossierMoteur(), 'inspirations')
   const echec = (message: string) => {
-    journal(id, message)
+    journal(id, { genre: 'erreur', texte: message })
     return modifier(id, { etat: 'erreur', erreur: message })
   }
   modifier(id, { etat: 'analyse', erreur: undefined })
@@ -179,8 +144,8 @@ export async function analyserInspiration(id: string, journal: JournalInspiratio
 
   // 1. Mesures (vidéo seulement) : coupes, planches d'images, silences, transcription.
   if (i.type === 'video') {
-    journal(id, 'Mesure le rythme : coupes, silences, images, paroles.')
-    const code = await executer(join(moteur, 'mesurer.sh'), [d], d, (t) => journal(id, t), id)
+    journal(id, { genre: 'info', icone: 'actualiser', texte: 'Mesure le rythme : coupes, silences, images, paroles.' })
+    const code = await executer(join(moteur, 'mesurer.sh'), [d], d, (t) => journal(id, { genre: 'technique', texte: t }), id)
     if (code !== 0) return echec('Les mesures de la vidéo ont échoué.')
   }
 
@@ -190,16 +155,16 @@ export async function analyserInspiration(id: string, journal: JournalInspiratio
     .replaceAll('{{NOTE}}', i.note ?? '')
     .replaceAll('{{MEDIA}}', `media/${i.source}`)
   writeFileSync(join(d, 'CLAUDE.md'), `${consignes}\n\n${readFileSync(join(moteur, 'sortie.md'), 'utf8')}`)
-  journal(id, i.type === 'lien' ? 'Claude ouvre la vidéo dans Chrome et la regarde.' : 'Claude regarde la vidéo et note ce qui fait son style.')
+  journal(id, { genre: 'info', icone: 'agent', texte: i.type === 'lien' ? 'Claude ouvre la vidéo dans Chrome et la regarde.' : 'Claude regarde la vidéo et note ce qui fait son style.' })
   const outils = i.type === 'lien' ? 'Read,Write,mcp__claude-in-chrome__*' : 'Read,Write,Glob,Bash(ffmpeg:*)'
-  const { ligne, etat } = lecteurClaude((t) => journal(id, t))
+  const { ligne, etat } = lecteurClaude((a) => journal(id, a))
   const args = ['-p', PROMPTS[i.type], '--output-format', 'stream-json', '--verbose', '--allowedTools', outils]
   if (i.type === 'lien') args.push('--chrome')
   const code = await executer('claude', args, d, ligne, id)
   if (code !== 0 || etat.resultat !== 'success') return echec('Claude n’a pas terminé l’analyse.')
   try {
     const r = JSON.parse(readFileSync(join(d, 'regles.json'), 'utf8'))
-    journal(id, `Analyse terminée : ${r.regles?.length ?? 0} règles apprises.`)
+    journal(id, { genre: 'succes', texte: `Analyse terminée : ${r.regles?.length ?? 0} règles apprises.` })
     return modifier(id, { etat: 'analysee', style: r.style, resume: r.resume, regles: r.regles ?? [], titre: i.type === 'lien' && r.titre ? r.titre : i.titre, analyseLe: new Date().toISOString() })
   } catch {
     return echec('La fiche n’a pas été produite.')
@@ -257,8 +222,8 @@ export async function synthetiserStyle(journal: JournalInspiration): Promise<Sty
   writeFileSync(join(d, 'CLAUDE.md'), readFileSync(join(moteur, 'synthese.md'), 'utf8'))
   writeFileSync(join(d, 'inspirations.txt'), analysees.map((i) => `../inspirations/${i.id}/  (${i.type}) ${i.titre}`).join('\n') + '\n')
   sousDossier(join('bibliotheque', 'polices'))
-  journal('style', `Claude relit tes ${analysees.length} inspiration${analysees.length > 1 ? 's' : ''} et écrit ton style.`)
-  const { ligne, etat } = lecteurClaude((t) => journal('style', t))
+  journal('style', { genre: 'info', icone: 'agent', texte: `Claude relit tes ${analysees.length} inspiration${analysees.length > 1 ? 's' : ''} et écrit ton style.` })
+  const { ligne, etat } = lecteurClaude((a) => journal('style', a))
   const code = await executer(
     'claude',
     ['-p', 'Écris le style de la personne en suivant CLAUDE.md.', '--output-format', 'stream-json', '--verbose', '--allowedTools', 'Read,Write,Edit,Glob,Bash(curl:*),Bash(ls:*)', '--add-dir', join(d, '..')],
@@ -270,7 +235,7 @@ export async function synthetiserStyle(journal: JournalInspiration): Promise<Sty
   const j = lireStyleJson()
   // Les réponses déjà données restent, même si Claude a reformulé les questions.
   writeFileSync(join(d, 'style.json'), JSON.stringify({ ...j, majLe: new Date().toISOString(), sources: analysees.map((i) => i.id) }, null, 2))
-  journal('style', 'Ton style est prêt.')
+  journal('style', { genre: 'succes', texte: 'Ton style est prêt.' })
   return lireStyle()
 }
 

@@ -65,10 +65,19 @@ export interface Inspiration {
   erreur?: string
 }
 
-export interface LigneInspiration {
+/** Une ligne d'activité, affichée de façon lisible (action, message de Claude) ou dans le détail technique. */
+export interface Activite {
+  texte: string
+  genre?: 'action' | 'message' | 'info' | 'technique' | 'erreur' | 'succes'
+  /** Nom d'une icône de l'interface. */
+  icone?: string
+  /** Les actions d'un même groupe qui se suivent sont réunies (« Regarde 12 images »). */
+  groupe?: string
+}
+
+export interface LigneInspiration extends Activite {
   /** Id de l'inspiration, ou « style » pendant la synthèse. */
   id: string
-  texte: string
 }
 
 export interface Question {
@@ -124,10 +133,9 @@ export interface Projet {
 
 export type EtapeMontage = 'preparation' | 'claude' | 'rendu' | 'fini'
 
-export interface LigneMontage {
+export interface LigneMontage extends Activite {
   id: string
   etape: EtapeMontage
-  texte: string
 }
 
 export interface Api {

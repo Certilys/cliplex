@@ -83,6 +83,15 @@ const TRACES = {
   ),
   reglages: <path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" />,
   stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+  oeil: (
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  document: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" />,
+  crayon: <path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3" />,
+  alerte: <path d="M12 8v5M12 16.5v.5M10.3 4l-8 14a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3l-8-14a2 2 0 0 0-3.4 0z" />,
   agent: (
     <>
       <rect x="4" y="7" width="16" height="12" rx="3" />

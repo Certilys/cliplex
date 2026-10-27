@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { EtatChrome, Inspiration, LigneInspiration, Style } from '../../../shared/types'
+import { Activite } from '../composants/Activite'
 import { BarreHaut } from '../composants/Coquille'
 import { Icone } from '../composants/Icone'
 import { Pastille } from './Bienvenue'
@@ -128,7 +129,7 @@ export function ZoneInspirations({ onStyle, compact }: { onStyle?: () => void; c
               {liste.length} inspiration{liste.length > 1 ? 's' : ''} · {analysees} analysée{analysees > 1 ? 's' : ''}
             </span>
             <div className="ml-auto flex gap-2">
-              {analysees > 0 && !aAnalyser && !styleAJour && (
+              {analysees > 0 && !aAnalyser && !styleAJour && !occupe && !liste.some((i) => i.etat === 'analyse') && (
                 <button className="btn-blanc h-8 text-[12.5px]" disabled={!!occupe} onClick={creerStyle}>
                   {style?.existe ? 'Mettre à jour mon style' : 'Créer mon style'}
                 </button>
@@ -140,13 +141,15 @@ export function ZoneInspirations({ onStyle, compact }: { onStyle?: () => void; c
           </div>
           <div className={`grid gap-2.5 ${compact ? 'grid-cols-3' : 'grid-cols-4'}`}>
             {liste.map((i) => (
-              <CarteInspiration key={i.id} inspiration={i} derniere={[...journal].reverse().find((l) => l.id === i.id)?.texte} onAnalyser={() => analyser(i.id)} onSupprimer={async () => (await window.cliplex.inspirations.supprimer(i.id), charger())} occupe={!!occupe} />
+              <CarteInspiration key={i.id} inspiration={i} derniere={[...journal].reverse().find((l) => l.id === i.id && l.genre !== 'technique')?.texte} onAnalyser={() => analyser(i.id)} onSupprimer={async () => (await window.cliplex.inspirations.supprimer(i.id), charger())} occupe={!!occupe} />
             ))}
           </div>
         </div>
       )}
 
-      {(occupe || journal.length > 0) && <Journal lignes={journal} liste={liste} compact={compact} />}
+      {(occupe || journal.length > 0) && (
+        <Activite lignes={journal} enCours={!!occupe || liste.some((i) => i.etat === 'analyse')} source={(id) => (id === 'style' ? 'Ton style' : liste.find((i) => i.id === id)?.titre ?? id)} className={compact ? 'h-[240px]' : 'h-[320px] max-w-[980px]'} />
+      )}
 
       {style?.existe && !occupe && (
         <div className={`carte flex items-center gap-4 p-4 ${compact ? '' : 'max-w-[980px]'}`}>
@@ -228,11 +231,14 @@ function CarteInspiration({ inspiration: i, derniere, onAnalyser, onSupprimer, o
       <div className="relative aspect-video bg-nuit-3">
         {i.type === 'image' && <img src={adresse(`media/${i.source}`)} className="h-full w-full object-cover" />}
         {i.type === 'video' && <video src={`${adresse(`media/${i.source}`)}#t=2`} muted preload="metadata" className="h-full w-full object-cover" />}
-        {i.type === 'lien' && (
-          <div className="grid h-full place-items-center text-[#8C879A]">
-            <Icone nom="youtube" taille={30} />
-          </div>
-        )}
+        {i.type === 'lien' &&
+          (idYoutube(i.source) ? (
+            <img src={`https://i.ytimg.com/vi/${idYoutube(i.source)}/hqdefault.jpg`} className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full place-items-center text-[#8C879A]">
+              <Icone nom="youtube" taille={30} />
+            </div>
+          ))}
         <span className="absolute left-2 top-2">
           <Pastille ton={ETATS[i.etat].ton}>{ETATS[i.etat].nom}</Pastille>
         </span>
@@ -268,27 +274,4 @@ function CarteInspiration({ inspiration: i, derniere, onAnalyser, onSupprimer, o
   )
 }
 
-function Journal({ lignes, liste, compact }: { lignes: LigneInspiration[]; liste: Inspiration[]; compact?: boolean }) {
-  const bas = useRef<HTMLDivElement>(null)
-  useEffect(() => bas.current?.scrollIntoView({ block: 'end' }), [lignes])
-  const titre = (id: string) => (id === 'style' ? 'Ton style' : liste.find((i) => i.id === id)?.titre ?? id)
-  return (
-    <div className={`overflow-hidden rounded-xl bg-nuit font-mono text-[11.5px] leading-[1.7] text-[#CFCADA] ${compact ? '' : 'max-w-[980px]'}`}>
-      <div className="flex h-9 items-center gap-2.5 border-b border-white/10 px-4 font-sans text-[12.5px] font-semibold text-white">
-        <Icone nom="terminal" />
-        Ce que fait Claude
-        <span className="font-medium text-[#8C879A]">· en direct</span>
-      </div>
-      <div className={`${compact ? 'h-[120px]' : 'h-[200px]'} overflow-y-auto px-4 py-2.5 select-text`}>
-        {lignes.length === 0 && <div className="text-[#6E6880]">Démarrage…</div>}
-        {lignes.map((l, k) => (
-          <div key={k}>
-            <span className="text-[#8C879A]">{titre(l.id).slice(0, 28)} · </span>
-            {l.texte}
-          </div>
-        ))}
-        <div ref={bas} />
-      </div>
-    </div>
-  )
-}
+const idYoutube = (url: string) => url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/)?.[1]

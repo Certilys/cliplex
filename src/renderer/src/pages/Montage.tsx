@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { EtapeMontage, Genre, LigneMontage, Projet, Style } from '../../../shared/types'
+import { Activite } from '../composants/Activite'
 import { BarreHaut } from '../composants/Coquille'
 import { Icone } from '../composants/Icone'
 import { Pastille } from './Bienvenue'
@@ -269,28 +270,19 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
 }
 
 function Progression({ etape, lignes }: { etape?: EtapeMontage; lignes: LigneMontage[] }) {
-  const bas = useRef<HTMLDivElement>(null)
-  useEffect(() => bas.current?.scrollIntoView({ block: 'end' }), [lignes])
   const rang = ETAPES.findIndex((e) => e.id === etape)
+  const enCours = rang >= 0
   return (
-    <div className="flex h-[78%] w-[min(620px,86%)] flex-col rounded-[14px] border border-white/10 bg-nuit-2 p-5 text-white">
-      <div className="flex gap-2">
+    <div className="flex h-[82%] w-[min(680px,88%)] flex-col gap-3">
+      <div className="flex gap-1.5 rounded-xl border border-white/10 bg-nuit-2 p-1.5">
         {ETAPES.map((e, i) => (
-          <div key={e.id} className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium ${i === rang ? 'bg-white/10 text-white' : i < rang ? 'text-[#5FD39A]' : 'text-[#6E6880]'}`}>
-            {i < rang ? <Icone nom="coche" taille={14} /> : i === rang ? <span className="tourne h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-violet-clair" /> : <span className="h-3.5 w-3.5 rounded-full border border-white/20" />}
+          <div key={e.id} className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium ${i === rang ? 'bg-white/10 text-white' : i < rang || etape === 'fini' ? 'text-[#5FD39A]' : 'text-[#6E6880]'}`}>
+            {i < rang || etape === 'fini' ? <Icone nom="coche" taille={14} /> : i === rang ? <span className="tourne h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-violet-clair" /> : <span className="h-3.5 w-3.5 rounded-full border border-white/20" />}
             {e.nom}
           </div>
         ))}
       </div>
-      <div className="mt-4 flex-1 overflow-y-auto font-mono text-[11.5px] leading-[1.7] text-[#B4AFC1] select-text">
-        {lignes.length === 0 && <div className="text-[#6E6880]">Démarrage…</div>}
-        {lignes.map((l, i) => (
-          <div key={i} className={l.etape === 'claude' && !l.texte.startsWith('{') ? 'text-white' : ''}>
-            {l.texte}
-          </div>
-        ))}
-        <div ref={bas} />
-      </div>
+      <Activite lignes={lignes} enCours={enCours} sombre titre={rang >= 0 ? ETAPES[rang].nom : 'Montage'} className="flex-1" />
     </div>
   )
 }

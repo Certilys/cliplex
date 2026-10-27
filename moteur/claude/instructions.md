@@ -28,7 +28,7 @@ Tu travailles dans le dossier de montage du projet (dossier courant). Tout y est
 3. **Découper en parties** (pour une formation : les notions, les étapes) et écrire le script monté.
 4. **Préparer les illustrations** dont tu as besoin (voir « Chercher sur internet »).
 5. **Écrire `plan.json`** (format ci-dessous).
-6. **Rendre un brouillon** : `./rendre-brouillon.sh`
+6. **Rendre un brouillon** : `./rendre-brouillon.sh`, au premier plan (jamais en arrière-plan) : il prend quelques minutes, attends qu'il se termine.
 7. **Vérifier** `timeline.txt` et **toutes** les planches `controle/planche_*.jpg` comme un monteur exigeant (checklist). Corriger et re-rendre tant qu'un point n'est pas bon.
 8. **Terminer** en écrivant `resume.md` : 3 à 6 lignes sur tes choix (prises gardées, règles du style appliquées, illustrations et leurs sources). Ne lance pas le rendu final : Cliplex s'en charge.
 

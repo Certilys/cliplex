@@ -67,16 +67,18 @@ export function Bienvenue({ reglages, onFini }: { reglages: Reglages; onFini: (r
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="glisser h-10 flex-none" />
         <div className="flex min-h-0 flex-1 flex-col px-[72px] pb-9 pt-8">
-          <div className="surtitre">
-            Étape {etape + 1} sur {ETAPES.length}
+          <div className="-mx-[72px] flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-[72px] pb-6">
+            <div className="surtitre">
+              Étape {etape + 1} sur {ETAPES.length}
+            </div>
+            {etape === 0 && <EtapeBesoins />}
+            {etape === 1 && <EtapeObjectifs choisis={objectifs} onChange={setObjectifs} />}
+            {etape === 2 && <EtapeDossier dossier={dossier} onChange={setDossier} />}
+            {etape === 3 && <EtapeInstallation />}
+            {etape === 4 && <EtapeClaude />}
+            {etape === 5 && <EtapeInspirations />}
           </div>
-          {etape === 0 && <EtapeBesoins />}
-          {etape === 1 && <EtapeObjectifs choisis={objectifs} onChange={setObjectifs} />}
-          {etape === 2 && <EtapeDossier dossier={dossier} onChange={setDossier} />}
-          {etape === 3 && <EtapeInstallation />}
-          {etape === 4 && <EtapeClaude />}
-          {etape === 5 && <EtapeInspirations />}
-          <div className="mt-auto flex items-center justify-between border-t border-bord pt-6">
+          <div className="flex flex-none items-center justify-between border-t border-bord pt-6">
             {etape > 0 ? (
               <button className="btn-fantome" onClick={() => setEtape(etape - 1)}>
                 <Icone nom="retour" />
@@ -156,7 +158,7 @@ function Besoin({ icone, titre, texte, etat, grise }: { icone: NomIcone; titre: 
 
 function EtapeInspirations() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-4">
+    <div>
       <Titre titre="Montre à Claude ce que tu aimes" texte="Dépose deux à cinq vidéos dont le montage te plaît (les tiennes ou celles des autres), ou colle des liens YouTube. Claude les regarde, en tire ton style, puis te pose ses questions. Tu peux aussi le faire plus tard." />
       <ZoneInspirations compact />
     </div>
@@ -310,8 +312,8 @@ function EtapeInstallation() {
           <p className="mt-3.5 border-t border-bord-2 pt-3.5 text-[12px] leading-normal text-muet">Tu es développeur ? Toutes les commandes sont dans la documentation : tu peux tout installer toi-même.</p>
         </div>
       </div>
-      <div className="-mx-[72px] mt-5 h-[180px] flex-none bg-nuit font-mono text-[12px] leading-[1.75] text-[#CFCADA]">
-        <div className="flex h-9 items-center gap-2.5 border-b border-white/10 px-[72px] font-sans text-[12.5px] font-semibold text-white">
+      <div className="mt-5 h-[190px] flex-none overflow-hidden rounded-xl bg-nuit font-mono text-[11.5px] leading-[1.75] text-[#CFCADA]">
+        <div className="flex h-10 items-center gap-2.5 border-b border-white/10 px-4 font-sans text-[12.5px] font-semibold text-white">
           <Icone nom="terminal" />
           Journal en direct
           <span className="font-medium text-[#8C879A]">· commandes réelles</span>
@@ -319,7 +321,7 @@ function EtapeInstallation() {
             Copier
           </button>
         </div>
-        <div className="h-[144px] overflow-y-auto px-[72px] py-2.5 select-text">
+        <div className="h-[150px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words px-4 py-2.5 select-text">
           {journal.length === 0 && <div className="text-[#6E6880]"># Les commandes lancées s'afficheront ici, ligne par ligne.</div>}
           {journal.map((l, i) => (
             <div key={i} className={{ commande: '', sortie: '', succes: 'text-[#5FD39A]', erreur: 'text-[#F2A7A0]', note: 'text-[#6E6880]' }[l.type]}>

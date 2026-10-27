@@ -3,7 +3,7 @@ import { is } from '@electron-toolkit/utils'
 import { writeFileSync } from 'fs'
 import { join, normalize } from 'path'
 import { pathToFileURL } from 'url'
-import type { Genre, LigneJournal, Projet, Reglages } from '../shared/types'
+import type { Activite, Genre, LigneJournal, Projet, Reglages } from '../shared/types'
 import { connecterClaude, etatChrome, etatClaude, installerExtension } from './claude'
 import { installerOutil, listerOutils } from './outils'
 import { copierRushs, creerProjet, dossierProjet, listerProjets, modifierProjet } from './projets'
@@ -87,7 +87,7 @@ function brancherIpc(): void {
   ipcMain.handle('claude:chrome', () => etatChrome())
   ipcMain.handle('claude:installerExtension', () => installerExtension())
 
-  const journalInspiration = (id: string, texte: string) => fenetre?.webContents.send('inspirations:journal', { id, texte })
+  const journalInspiration = (id: string, a: Activite) => fenetre?.webContents.send('inspirations:journal', { id, ...a })
   ipcMain.handle('inspirations:lister', () => listerInspirations())
   ipcMain.handle('inspirations:ajouterFichiers', async () => {
     const r = await dialog.showOpenDialog(fenetre!, {
@@ -124,7 +124,7 @@ function brancherIpc(): void {
   ipcMain.handle('projets:ouvrirDossier', (_e, id: string) => shell.openPath(dossierProjet(id)))
 
   ipcMain.handle('montage:lancer', (_e, id: string) =>
-    lancerMontage(id, (etape, texte) => fenetre?.webContents.send('montage:journal', { id, etape, texte }))
+    lancerMontage(id, (etape, a) => fenetre?.webContents.send('montage:journal', { id, etape, ...a }))
   )
   ipcMain.handle('montage:arreter', (_e, id: string) => arreterMontage(id))
 }
