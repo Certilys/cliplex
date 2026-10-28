@@ -1,5 +1,5 @@
 ---
-name: demarrer
+name: setup
 description: Premier lancement de Cliplex sans l'app. À utiliser quand la personne découvre Cliplex, dit bonjour, veut commencer, ou quand ./cliplex etat montre des outils manquants, aucune inspiration ou pas de style. Explique ce qu'il faut, installe les outils, demande ses vidéos d'inspiration, crée son style.
 ---
 
