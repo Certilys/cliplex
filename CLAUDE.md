@@ -13,6 +13,8 @@ Dans le doute, demande-lui en une phrase.
 
 Tout passe par `./cliplex` (lance-le sans argument pour l'aide). Il fait exactement ce que fait l'app, avec les mêmes fichiers : une personne peut passer de l'un à l'autre.
 
+Si elle demande comment ça marche, explique-le avec `docs/comment-ca-marche.md` (en quelques phrases, pas tout le document).
+
 Au début de chaque conversation de studio, lance `./cliplex etat`, puis :
 - outils manquants, aucune inspiration ou pas de style : skill `demarrer` (premier lancement guidé) ;
 - elle veut ajouter ou revoir des inspirations, ou changer son style : skill `style` ;

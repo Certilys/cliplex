@@ -48,6 +48,8 @@ claude
 
 Dis bonjour. Claude t'explique ce qu'il faut, installe les outils (avec ton accord), te demande tes vidéos d'inspiration (fichiers ou liens YouTube), en tire ton style, puis monte tes vidéos. Tu regardes un brouillon, tu demandes des retouches, et rien n'est exporté (en 4K ou en 1080p) avant que tu le valides.
 
+Le détail de chaque étape : [docs/comment-ca-marche.md](docs/comment-ca-marche.md).
+
 Tout va dans le dossier `espace/` du dépôt (ou dans celui de l'app si tu l'utilises aussi : ce sont les mêmes fichiers). Le script `./cliplex` fait chaque étape ; lance-le sans argument pour voir ses commandes.
 
 ## Installer pour développer
