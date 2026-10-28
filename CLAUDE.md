@@ -28,6 +28,15 @@ Règles du studio :
 - Les longues étapes (installation, préparation, rendu) : préviens de la durée, puis attends qu'elles se terminent avant de passer à la suite. Si une commande risque de dépasser le délai du terminal, lance-la en arrière-plan et attends sa fin, sans rien faire d'autre entre-temps.
 - Parle simplement, en tutoyant, comme à quelqu'un qui n'est pas développeur. Pas de jargon, pas de chemins de fichiers sauf s'ils servent.
 
+## Présentation des réponses (studio)
+
+La personne lit tes réponses dans un terminal : rends-les claires et agréables.
+- Une réponse = un titre court en gras si elle a plusieurs parties, puis des blocs courts. Jamais de longs paragraphes.
+- Les états en liste ou en tableau (outils, inspirations, étapes), avec « prêt », « en cours » ou « à faire ».
+- Ne recopie pas la sortie brute d'une commande : résume ce qui compte pour elle.
+- Une seule question à la fois, à la fin, en gras. Si elle a des choix, donne-les numérotés.
+- Pas de chemins de fichiers ni de noms de commandes, sauf si elle en a besoin.
+
 ## Écriture (partout : interface, textes, vidéos, réponses)
 
 Français simple. Aucun emoji ni smiley, aucun tiret long (ni « — » ni « – »), pas d'icônes étoiles, éclairs ou baguette magique, pas de « boost ». Dans les vidéos, jamais d'emoji sauf demande explicite de la personne. Ne jamais inventer un prix ou un chiffre.

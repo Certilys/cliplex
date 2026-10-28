@@ -16,18 +16,13 @@ Lance `./cliplex etat`. Explique en trois lignes :
 
 ## 2. Les outils
 
-S'il en manque, présente-les en tableau (seulement les manquants) :
+`./cliplex etat` vérifie déjà ce qu'elle a : un outil déjà sur son Mac (ffmpeg, Node, Python avec whisper, Claude Code) est utilisé tel quel et n'est jamais réinstallé. Fais-lui un récapitulatif en deux parties :
 
-| Outil | À quoi il sert | Taille |
-| --- | --- | --- |
-| ffmpeg | Découpe, assemble, exporte la vidéo | ≈ 80 Mo |
-| Node.js | Fait tourner le moteur d'animation | ≈ 50 Mo |
-| Python et whisper | Transcrit sa voix mot à mot, en local | ≈ 120 Mo |
-| Modèle de transcription | Reconnaît la parole, 90 langues | ≈ 575 Mo |
-| Débruiteur de voix | Retire le souffle et le bruit de fond | ≈ 300 Ko |
-| Moteur d'animation (Remotion) | Dessine chaque image de la vidéo | ≈ 300 Mo |
+**Déjà prêt** : une ligne par outil trouvé, avec où il est (« déjà sur ton Mac » ou « installé par Cliplex »).
 
-Précise : sans mot de passe, sans Homebrew, tout dans `<dossier>/outils`, détail dans `docs/installation-manuelle.md`. Demande son accord, puis lance `./cliplex installer` au premier plan (plusieurs minutes selon la connexion). En cas d'échec, montre l'erreur et la commande manuelle du document.
+**À installer** (seulement s'il en manque) : un tableau avec l'outil, à quoi il sert et sa taille, puis le total. Précise : sans mot de passe, sans Homebrew, tout dans le dossier Cliplex, détail dans `docs/installation-manuelle.md`.
+
+Si tout est prêt, dis-le en une phrase et passe à la suite. Sinon, demande son accord, puis lance `./cliplex installer` (plusieurs minutes selon la connexion). À la fin, refais `./cliplex etat` et confirme en une ligne. En cas d'échec, montre l'erreur et la commande manuelle du document.
 
 ## 3. Ses inspirations
 

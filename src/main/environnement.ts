@@ -22,8 +22,8 @@ export function chemins() {
 
 // Une app lancée depuis le Finder n'hérite pas du PATH du terminal.
 // Les outils de Cliplex passent en premier ; ensuite les emplacements habituels,
-// pour retrouver un Claude Code déjà installé par la personne.
-const SYSTEME = [join(homedir(), '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
+// pour retrouver ce que la personne a déjà (Claude Code, ffmpeg, Node…) au lieu de le réinstaller.
+const SYSTEME = [join(homedir(), '.local/bin'), join(homedir(), 'n/bin'), join(homedir(), '.volta/bin'), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
 
 export function env(): NodeJS.ProcessEnv {
   const c = chemins()

@@ -45,17 +45,38 @@ ARCH=$(uname -m)
 if [ "$ARCH" == "arm64" ]; then P_NODE=arm64 P_UV=aarch64 P_FF=arm64; else P_NODE=x64 P_UV=x86_64 P_FF=amd64; fi
 NODE=24.22.1; UV=0.13.6; MODELE=ggml-large-v3-turbo-q5_0.bin
 
-present() {
+# Où se trouve un outil : « cliplex » (dans le dossier), « mac » (déjà installé et utilisable), rien s'il manque.
+# Ce qui est déjà sur le Mac n'est jamais réinstallé.
+ou() {
   case "$1" in
-    ffmpeg) [ -x "$O/bin/ffmpeg" ] ;;
-    node) [ -x "$O/node/bin/node" ] ;;
-    python) [ -x "$O/python/bin/python" ] && "$O/python/bin/python" -c 'import numpy, pywhispercpp' 2>/dev/null ;;
-    modele) [ -f "$O/modeles/$MODELE" ] && [ "$(stat -f %z "$O/modeles/$MODELE")" -gt 400000000 ] ;;
-    debruiteur) [ -f "$O/modeles/sh.rnnn" ] ;;
-    studio) [ -f "$O/studio/node_modules/remotion/package.json" ] && cmp -s "$MOTEUR/studio/package.json" "$O/studio/package.json" ;;
-    claude) command -v claude >/dev/null ;;
+    ffmpeg)
+      [ -x "$O/bin/ffmpeg" ] && { echo cliplex; return; }
+      command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null && ffmpeg -hide_banner -filters 2>/dev/null | grep -q arnndn && echo mac ;;
+    node)
+      [ -x "$O/node/bin/node" ] && { echo cliplex; return; }
+      command -v npm >/dev/null && [ "$(node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')" -ge 18 ] 2>/dev/null && echo mac ;;
+    python)
+      [ -x "$O/python/bin/python" ] && "$O/python/bin/python" -c 'import numpy, pywhispercpp' 2>/dev/null && { echo cliplex; return; }
+      python3 -c 'import numpy, pywhispercpp' 2>/dev/null && echo mac ;;
+    modele) [ -f "$O/modeles/$MODELE" ] && [ "$(stat -f %z "$O/modeles/$MODELE")" -gt 400000000 ] && echo cliplex ;;
+    debruiteur) [ -f "$O/modeles/sh.rnnn" ] && echo cliplex ;;
+    studio) [ -f "$O/studio/node_modules/remotion/package.json" ] && cmp -s "$MOTEUR/studio/package.json" "$O/studio/package.json" && echo cliplex ;;
+    claude)
+      [ -f "$O/claude/.cliplex" ] && command -v claude >/dev/null && { echo cliplex; return; }
+      command -v claude >/dev/null && echo mac ;;
   esac
+  return 0
 }
+present() { [ -n "$(ou "$1")" ]; }
+
+# Colonnes alignées même avec des accents (printf compte les octets, pas les lettres).
+export LC_CTYPE="${LC_CTYPE:-en_US.UTF-8}"
+col() { printf "%s%*s" "$1" $(( $2 - ${#1} )) ""; }
+ligne() { echo "  $1 $(col "$2" 26)$(col "$3" 30)$4"; }
+
+nom() { case "$1" in ffmpeg) echo "ffmpeg" ;; node) echo "Node.js" ;; python) echo "Python et whisper" ;; modele) echo "Modèle de transcription" ;; debruiteur) echo "Débruiteur de voix" ;; studio) echo "Moteur d'animation" ;; claude) echo "Claude Code" ;; esac; }
+role() { case "$1" in ffmpeg) echo "découpe, assemble, exporte" ;; node) echo "fait tourner les animations" ;; python) echo "transcrit ta voix, en local" ;; modele) echo "reconnaît la parole" ;; debruiteur) echo "retire le bruit de fond" ;; studio) echo "dessine chaque image" ;; claude) echo "le monteur" ;; esac; }
+mo() { case "$1" in ffmpeg) echo 80 ;; node) echo 50 ;; python) echo 120 ;; modele) echo 575 ;; debruiteur) echo 1 ;; studio) echo 300 ;; claude) echo 60 ;; esac; }
 
 installer() {
   echo "# $1"
@@ -87,21 +108,41 @@ case "$cmd" in
 
   etat)
     echo "Dossier Cliplex : $C"
-    echo; echo "Outils :"
-    for o in $OUTILS; do if present $o; then echo "  ok        $o"; else echo "  manquant  $o"; fi; done
-    if command -v claude >/dev/null && ls "$HOME/Library/Application Support/Google/Chrome/"*/Extensions/fcoeoabgfenejglbffodgkkbkcdhcgfn >/dev/null 2>&1; then echo "  ok        extension Claude pour Chrome (liens YouTube)"; else echo "  manquant  extension Claude pour Chrome (seulement pour les liens YouTube)"; fi
-    echo; echo "Inspirations :"
+    echo; echo "OUTILS"
+    manque=0; total=0
+    for o in $OUTILS; do
+      w="$(ou $o)"
+      case "$w" in
+        cliplex) etat="installé par Cliplex" ;;
+        mac) etat="déjà sur ton Mac, rien à installer" ;;
+        *) etat="à installer, ≈ $(mo $o) Mo"; manque=$((manque+1)); total=$((total+$(mo $o))) ;;
+      esac
+      [ -n "$w" ] && m="✓" || m="○"
+      ligne "$m" "$(nom $o)" "$(role $o)" "$etat"
+    done
+    if ls "$HOME/Library/Application Support/Google/Chrome/"*/Extensions/fcoeoabgfenejglbffodgkkbkcdhcgfn >/dev/null 2>&1; then
+      ligne "✓" "Extension Chrome" "regarde les liens YouTube" "connectée à Chrome"
+    else
+      ligne "○" "Extension Chrome" "regarde les liens YouTube" "facultative, pour les liens"
+    fi
+    echo
+    if [ $manque -eq 0 ]; then echo "  Tout est prêt."
+    else [ $manque -gt 1 ] && x="$manque outils" || x="1 outil"; echo "  À installer : $x, ≈ $( [ $total -ge 1000 ] && echo "$(echo "scale=1; $total/1000" | bc) Go" || echo "$total Mo" ), dans $O"; fi
+    echo; echo "INSPIRATIONS"
     n=0; for f in "$C"/inspirations/*/inspiration.json; do [ -f "$f" ] || continue; n=$((n+1)); py -c "import json,sys;i=json.load(open(sys.argv[1]));print(f\"  {i['etat']:<10}{i['id']}  ({i['type']}) {i.get('titre','')}\")" "$f"; done
     if [ $n -eq 0 ]; then echo "  aucune"; fi
-    echo; if [ -f "$C/style/style.md" ]; then echo "Style : $(head -1 "$C/style/style.md" | sed 's/^# //')"; else echo "Style : pas encore créé"; fi
-    echo; echo "Vidéos :"
+    echo; echo "STYLE"
+    if [ -f "$C/style/style.md" ]; then echo "  $(head -1 "$C/style/style.md" | sed 's/^# //')"; else echo "  pas encore créé"; fi
+    echo; echo "VIDÉOS"
     n=0; for f in "$C"/projets/*/projet.json; do [ -f "$f" ] || continue; n=$((n+1)); py -c "import json,sys;p=json.load(open(sys.argv[1]));print(f\"  {p['statut']:<10}{p['id']}  {p.get('genre','formation')} {p['format']}\")" "$f"; done
     if [ $n -eq 0 ]; then echo "  aucune"; fi ;;
 
   installer)
     for o in ${1:-$OUTILS}; do
-      if present $o; then echo "ok : $o"; continue; fi
-      ( installer $o ) && present $o && echo "ok : $o" || { echo "ÉCHEC : $o (voir docs/installation-manuelle.md)"; exit 1; }
+      w="$(ou $o)"
+      if [ "$w" == "mac" ]; then echo "✓ $(nom $o) : déjà sur ton Mac, rien à installer"; continue; fi
+      if [ -n "$w" ]; then echo "✓ $(nom $o) : déjà installé"; continue; fi
+      ( installer $o ) && present $o && echo "✓ $(nom $o) : installé" || { echo "ÉCHEC : $(nom $o) (voir docs/installation-manuelle.md)"; exit 1; }
     done ;;
 
   inspiration)

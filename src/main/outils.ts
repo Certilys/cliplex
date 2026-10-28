@@ -18,6 +18,8 @@ interface Definition extends Omit<Outil, 'etat' | 'version' | 'chemin' | 'comman
 }
 
 const premiere = (texte: string, motif: RegExp): string | undefined => texte.match(motif)?.[1]
+/** Précise quand l'outil trouvé n'est pas celui de Cliplex : rien n'est réinstallé. */
+const surLeMac = (local: string) => (existsSync(local) ? '' : ', déjà sur ton Mac')
 const modeles = () => join(chemins().outils, 'modeles')
 const cheminModele = () => join(modeles(), MODELE_WHISPER)
 
@@ -34,8 +36,11 @@ const DEFINITIONS: Definition[] = [
       return `mkdir -p "${b}" && cd "${b}" && for x in ffmpeg ffprobe; do curl -L --fail --progress-bar -o $x.zip https://ffmpeg.martin-riedl.de/redirect/latest/macos/${PUCE.ffmpeg}/release/$x.zip && unzip -oq $x.zip && rm $x.zip; done`
     },
     detecter: async () => {
-      const r = await lancer(join(chemins().bin, 'ffmpeg'), ['-version'])
-      return r.ok ? { version: premiere(r.sortie, /ffmpeg version (\S+)/) } : null
+      // Celui de Cliplex, sinon celui du Mac s'il a le débruiteur de voix (filtre arnndn) et ffprobe.
+      const r = await lancer('ffmpeg', ['-hide_banner', '-filters'])
+      const v = await lancer('ffmpeg', ['-version'])
+      if (!r.ok || !r.sortie.includes('arnndn') || !(await lancer('ffprobe', ['-version'])).ok) return null
+      return { version: `${premiere(v.sortie, /ffmpeg version (\S+)/) ?? ''}${surLeMac(join(chemins().bin, 'ffmpeg'))}` }
     }
   },
   {
@@ -48,8 +53,10 @@ const DEFINITIONS: Definition[] = [
       return `mkdir -p "${d}" && curl -L --fail --progress-bar https://nodejs.org/dist/v${NODE}/node-v${NODE}-darwin-${PUCE.node}.tar.gz | tar xz -C "${d}" --strip-components 1`
     },
     detecter: async () => {
-      const r = await lancer(join(chemins().node, 'node'), ['--version'])
-      return r.ok ? { version: r.sortie.replace(/^v/, '') } : null
+      // Celui de Cliplex, sinon celui du Mac à partir de Node 18 (avec npm).
+      const r = await lancer('node', ['--version'])
+      if (!r.ok || parseInt(r.sortie.replace(/^v/, '')) < 18 || !(await lancer('npm', ['--version'])).ok) return null
+      return { version: `${r.sortie.replace(/^v/, '')}${surLeMac(join(chemins().node, 'node'))}` }
     }
   },
   {
@@ -63,8 +70,12 @@ const DEFINITIONS: Definition[] = [
       return `mkdir -p "${c.bin}" && curl -L --fail -sS https://github.com/astral-sh/uv/releases/download/${UV}/uv-${PUCE.uv}-apple-darwin.tar.gz | tar xz -C "${c.bin}" --strip-components 1 && "${c.bin}/uv" venv --python 3.12 "${d}" && "${c.bin}/uv" pip install --python "${d}/bin/python" numpy pywhispercpp`
     },
     detecter: async () => {
-      const r = await lancer(chemins().python, ['-c', 'import numpy, pywhispercpp, sys; print(sys.version.split()[0])'])
-      return r.ok ? { version: `Python ${r.sortie}`, chemin: chemins().python } : null
+      // Le moteur prend celui de Cliplex, sinon python3 s'il a déjà numpy et pywhispercpp.
+      const test = ['-c', 'import numpy, pywhispercpp, sys; print(sys.version.split()[0])']
+      const local = await lancer(chemins().python, test)
+      if (local.ok) return { version: `Python ${local.sortie}`, chemin: chemins().python }
+      const mac = await lancer('python3', test)
+      return mac.ok ? { version: `Python ${mac.sortie}, déjà sur ton Mac` } : null
     }
   },
   {
