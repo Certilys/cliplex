@@ -39,6 +39,8 @@ Puis il te pose quelques questions sur ce qu'il ne peut pas deviner en regardant
 
 Tu donnes ton rush, un titre, le genre (formation par défaut, YouTube, court, pub), le format (16:9 par défaut) et tes consignes (« je m'appelle Léa », « montre le site de Supabase quand j'en parle », « le rush est déjà coupé »).
 
+**Tu peux tout demander.** Motion design, animations de texte, transitions, effets sonores, une ouverture, ton logo, une ambiance comme celle d'une vidéo que tu aimes. Le moteur a ses éléments tout prêts (chapitres, encarts, captures, schémas, zooms, sous-titres…), et quand ce que tu veux n'existe pas, Claude écrit l'animation pour ta vidéo. Plus tu décris précisément ce que tu veux, plus le résultat te ressemble.
+
 Cliplex prépare le rush : voix nettoyée, transcription mot à mot, une image par seconde.
 
 Claude lit tout, puis écrit le plan de montage. Il suit cet ordre de priorité :
@@ -49,9 +51,11 @@ Claude lit tout, puis écrit le plan de montage. Il suit cet ordre de priorité 
 
 Pour illustrer, il peut chercher sur internet des images officielles ou libres (logos, captures de sites) et note leurs sources.
 
+**Le son.** Ta voix est nettoyée et passe toujours devant. Les transitions et l'arrivée des éléments ont leurs effets sonores (whoosh, swoosh, pop, clic), discrets sous la voix : ils viennent d'un kit libre fabriqué pour Cliplex (`moteur/sons/`), que chacun peut utiliser. Tu peux les vouloir plus marqués, ou aucun. La musique est une question à part.
+
 ### 5. Le brouillon, puis tes retouches
 
-Claude rend un brouillon en demi-résolution, le regarde image par image et se corrige. Ensuite, c'est toi qui le regardes. Tu dis ce qu'il faut changer (« le titre du chapitre 2 arrive trop tôt »), il corrige et te rend un nouveau brouillon. Autant de tours qu'il faut.
+Claude rend un brouillon en demi-résolution, le regarde image par image et se corrige. Ensuite, c'est toi qui le regardes. Tu dis ce qu'il faut changer (« le titre du chapitre 2 arrive trop tôt », « à 0:32, mets la capture en perspective »), il corrige et te rend un nouveau brouillon. Autant de tours qu'il faut.
 
 ### 6. L'export
 
@@ -73,6 +77,10 @@ Ce sont des fichiers normaux : tu peux les lire, les modifier, les sauvegarder.
 
 ## Les commandes, si tu veux les lancer toi-même
 
-`./cliplex` sans argument affiche l'aide. Les principales : `etat`, `installer`, `inspiration <fichier|lien>`, `projet`, `preparer`, `brouillon`, `exporter <id> 4k`.
+`./cliplex` sans argument affiche l'aide. Les principales : `etat`, `installer`, `inspiration <fichier|lien>`, `projet`, `renommer`, `preparer`, `brouillon`, `exporter <id> 4k`.
+
+## Si ton dossier est sur le Bureau, dans Documents ou Téléchargements
+
+macOS protège ces dossiers, et le navigateur qui dessine les images de ta vidéo n'a pas le droit d'y lire ses propres fichiers. Cliplex le détecte et en garde une copie dans les caches du Mac (`~/Library/Caches/Cliplex`), qui ne prend pas de place en plus sur un disque APFS et peut être supprimée à tout moment. Tout le reste reste dans ton dossier Cliplex.
 
 Ce que Claude doit faire à chaque étape est écrit en clair dans `moteur/` : `moteur/inspirations/` pour l'analyse et le style, `moteur/claude/instructions.md` pour le montage. Tu peux les lire et les adapter.

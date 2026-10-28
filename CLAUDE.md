@@ -50,10 +50,11 @@ src/main/        processus principal : outils, projets, inspirations, style, mot
 src/preload/     pont window.cliplex (sandbox)
 src/renderer/    interface React : Bienvenue (accueil en 6 étapes), Inspirations, Style, Montage
 src/shared/      types communs (Api, Projet, Inspiration, Style, Activite)
-moteur/outils/       preparer.sh, compiler.py, rendre.sh, transcription (whisper local)
+moteur/outils/       preparer.sh, compiler.py, rendre.sh, tester-rendu.sh, transcription (whisper local)
 moteur/studio/       studio Remotion (composants de montage, éléments de formation)
 moteur/claude/       instructions.md : les règles du monteur, copiées dans chaque montage
 moteur/inspirations/ mesurer.sh et les consignes d'analyse et de synthèse du style
+moteur/sons/         kit d'effets sonores libre (fabriquer.py le génère, kit.json le décrit)
 cliplex              le même parcours en ligne de commande (studio sans l'app)
 ```
 
@@ -62,6 +63,7 @@ Le dossier Cliplex de la personne : `outils/` (ffmpeg, Node, Python, modèles, s
 Règles :
 - **L'app et `./cliplex` doivent rester d'accord** : mêmes fichiers, mêmes champs JSON, mêmes consignes. Un changement de format dans `src/main` se reporte dans `cliplex`, et inversement.
 - Les consignes données à Claude vivent dans `moteur/` (jamais en dur dans le code quand elles sont longues).
+- Le kit de sons est original (synthétisé) : jamais de son ni de musique de banque (CapCut, Mixkit, Epidemic…) dans le dépôt, leurs licences interdisent de les redistribuer.
 - Design sobre et moderne, jamais « fait par IA » : Inter, violet #8E44E0 réservé aux accents, pas de dégradé dans les textes, pas de bande de couleur sur le bord gauche des cadres. Le design compte autant que la fonction.
 - Toute commande lancée sur la machine de la personne est affichée et expliquée.
 - Tester dans la vraie app : `node scripts/piloter.mjs <scenario> <dossier>` (Playwright, données isolées dans `<dossier>/donnees`), et regarder les captures avant de dire que c'est fini.

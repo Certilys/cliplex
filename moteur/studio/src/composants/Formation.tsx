@@ -103,7 +103,7 @@ export const Chapitre: React.FC<{ el: any; theme: any }> = ({ el, theme }) => {
     return (
       <div style={{ position: "absolute", left: W * 0.045, bottom: H * 0.07, transform: `translateX(${e.dx}px)`, opacity: e.p, display: "flex", alignItems: "center", gap: 16 * k, background: c.panneau, color: c.texte, borderRadius: 14 * k, padding: `${16 * k}px ${24 * k}px`, fontFamily: police(theme.police, "Inter") }}>
         {el.numero && <span style={{ fontSize: 24 * k, fontWeight: 700, color: c.accent === "#FFFFFF" ? c.doux : c.accent }}>{el.numero}</span>}
-        <span style={{ fontSize: 28 * k, fontWeight: 600 }}>{el.titre}</span>
+        <span style={{ fontSize: 28 * k, fontWeight: 600 }}><Riche texte={el.titre} accent={c.accent} /></span>
       </div>
     );
   }

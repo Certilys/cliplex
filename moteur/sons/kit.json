@@ -1,0 +1,199 @@
+{
+  "whoosh_1": {
+    "fichier": "whoosh_1.wav",
+    "duree": 0.62,
+    "pic": 0.356,
+    "volume": 0.3,
+    "usage": "passage d'un plan à l'autre, chapitre"
+  },
+  "whoosh_2": {
+    "fichier": "whoosh_2.wav",
+    "duree": 0.8,
+    "pic": 0.498,
+    "volume": 0.3,
+    "usage": "transition plus ample"
+  },
+  "whoosh_3": {
+    "fichier": "whoosh_3.wav",
+    "duree": 0.45,
+    "pic": 0.249,
+    "volume": 0.28,
+    "usage": "transition vive"
+  },
+  "swoosh_1": {
+    "fichier": "swoosh_1.wav",
+    "duree": 0.34,
+    "pic": 0.17,
+    "volume": 0.22,
+    "usage": "encart ou carte qui glisse"
+  },
+  "swoosh_2": {
+    "fichier": "swoosh_2.wav",
+    "duree": 0.4,
+    "pic": 0.219,
+    "volume": 0.22,
+    "usage": "élément qui entre en douceur"
+  },
+  "pop_1": {
+    "fichier": "pop_1.wav",
+    "duree": 0.18,
+    "pic": 0.007,
+    "volume": 0.28,
+    "usage": "mot, idée qui apparaît"
+  },
+  "pop_2": {
+    "fichier": "pop_2.wav",
+    "duree": 0.18,
+    "pic": 0.007,
+    "volume": 0.28,
+    "usage": "mot, idée qui apparaît"
+  },
+  "pop_3": {
+    "fichier": "pop_3.wav",
+    "duree": 0.18,
+    "pic": 0.006,
+    "volume": 0.28,
+    "usage": "mot, idée qui apparaît"
+  },
+  "clic_1": {
+    "fichier": "clic_1.wav",
+    "duree": 0.06,
+    "pic": 0.005,
+    "volume": 0.3,
+    "usage": "point d'une liste, bouton"
+  },
+  "clic_2": {
+    "fichier": "clic_2.wav",
+    "duree": 0.06,
+    "pic": 0.006,
+    "volume": 0.3,
+    "usage": "point d'une liste, bouton"
+  },
+  "clic_3": {
+    "fichier": "clic_3.wav",
+    "duree": 0.06,
+    "pic": 0.005,
+    "volume": 0.28,
+    "usage": "point d'une liste, bouton"
+  },
+  "ding_1": {
+    "fichier": "ding_1.wav",
+    "duree": 1.3,
+    "pic": 0.007,
+    "volume": 0.25,
+    "usage": "validation, bonne réponse"
+  },
+  "ding_2": {
+    "fichier": "ding_2.wav",
+    "duree": 1.1,
+    "pic": 0.007,
+    "volume": 0.25,
+    "usage": "validation, bonne réponse"
+  },
+  "faux": {
+    "fichier": "faux.wav",
+    "duree": 0.45,
+    "pic": 0.009,
+    "volume": 0.22,
+    "usage": "erreur, à ne pas faire"
+  },
+  "notif": {
+    "fichier": "notif.wav",
+    "duree": 0.7,
+    "pic": 0.097,
+    "volume": 0.28,
+    "usage": "notification, message"
+  },
+  "frappe": {
+    "fichier": "frappe.wav",
+    "duree": 1.416,
+    "pic": 0.495,
+    "volume": 0.2,
+    "usage": "texte tapé"
+  },
+  "glitch": {
+    "fichier": "glitch.wav",
+    "duree": 0.319,
+    "pic": 0.149,
+    "volume": 0.2,
+    "usage": "coupure numérique (courts et pubs)"
+  },
+  "impact": {
+    "fichier": "impact.wav",
+    "duree": 1.0,
+    "pic": 0.031,
+    "volume": 0.35,
+    "usage": "révélation, chiffre fort"
+  },
+  "montee": {
+    "fichier": "montee.wav",
+    "duree": 1.6,
+    "pic": 1.558,
+    "volume": 0.25,
+    "usage": "tension avant une révélation (le pic est à la fin)"
+  },
+  "piece": {
+    "fichier": "piece.wav",
+    "duree": 0.6,
+    "pic": 0.076,
+    "volume": 0.25,
+    "usage": "argent, prix, compteur"
+  },
+  "declencheur": {
+    "fichier": "declencheur.wav",
+    "duree": 0.2,
+    "pic": 0.075,
+    "volume": 0.28,
+    "usage": "capture d'écran, photo"
+  },
+  "_familles": {
+    "whoosh": [
+      "whoosh_1",
+      "whoosh_2",
+      "whoosh_3"
+    ],
+    "swoosh": [
+      "swoosh_1",
+      "swoosh_2"
+    ],
+    "pop": [
+      "pop_1",
+      "pop_2",
+      "pop_3"
+    ],
+    "clic": [
+      "clic_1",
+      "clic_2",
+      "clic_3"
+    ],
+    "ding": [
+      "ding_1",
+      "ding_2"
+    ],
+    "faux": [
+      "faux"
+    ],
+    "notif": [
+      "notif"
+    ],
+    "typing": [
+      "frappe"
+    ],
+    "glitch": [
+      "glitch"
+    ],
+    "impact": [
+      "impact"
+    ],
+    "riser": [
+      "montee"
+    ],
+    "cash": [
+      "piece"
+    ],
+    "shutter": [
+      "declencheur"
+    ]
+  },
+  "_licence": "Sons synthétisés par moteur/sons/fabriquer.py, sous la licence du dépôt (Apache 2.0)."
+}

@@ -3,6 +3,7 @@ import { AbsoluteFill, Easing, Img, OffthreadVideo, interpolate, spring, staticF
 import { police } from "../polices";
 import { Notif, Particules, Titre3D } from "./Motion";
 import { Chapitre, Code, Definition, Ecran, Encart, Idee, Schema, Surlignage, Tiers } from "./Formation";
+import { PERSO } from "../perso";
 
 export const couleur = (c: string | undefined, theme: any) =>
   !c ? "#fff" : c === "accent" ? theme.accent : c === "rouge" ? theme.rouge : c === "cyan" ? theme.cyan : c === "blanc" ? "#fff" : c === "noir" ? "#0b0b0b" : c;
@@ -229,6 +230,10 @@ export const Element: React.FC<{ el: any; theme: any }> = ({ el: el0, theme }) =
     case "code": return <Code el={el} theme={theme} />;
     case "schema": return <Schema el={el} theme={theme} />;
     case "surlignage": return <Surlignage el={el} theme={theme} />;
+    case "perso": {
+      const C = PERSO[el.composant];
+      return C ? <C el={el} theme={theme} /> : null;
+    }
     default: return null;
   }
 };

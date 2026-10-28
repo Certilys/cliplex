@@ -46,7 +46,7 @@ Ne modifie jamais les rushs d'origine.
 
 **Texte.** Jamais sur le visage. Deux textes ne se superposent jamais. Pas de tiret long, pas de « boost ». Écrire juste et court : un encart dit l'essentiel en 3 à 8 mots par ligne.
 
-**Son.** La voix devant, toujours. Musique seulement si le style ou les consignes le demandent et qu'une bibliothèque existe. Effets sonores rares et justifiés.
+**Son.** La voix devant, toujours. Un montage pro a un habillage sonore : sans effets sonores, les animations paraissent muettes et la vidéo fait amateur. Le kit de Cliplex est posé automatiquement sur l'arrivée des éléments (voir « Effets sonores »), discret sous la voix. **Pas de musique ne veut pas dire pas d'effets sonores.** Musique seulement si le style ou les consignes la demandent et qu'une bibliothèque existe.
 
 **Fin.** Couper net après le dernier mot.
 
@@ -67,7 +67,8 @@ Le but est que la personne qui regarde **comprenne et retienne**. Rythme posé, 
 - **Zooms** : `lisse` 1,08 à 1,18 sur une phrase importante, de temps en temps (pas plus d'un toutes les 10 à 20 s). Pas de zoom `impact`.
 - **Sous-titres** : seulement si le style ou les consignes les veulent. Alors `"style": "formation"` (phrase en minuscules, en bas, `position` 0,86 à 0,9, `motsParGroupe` 6 à 8), aucun mot coloré.
 - **Bandeau nom** (`tiers`) à la première apparition de la personne si les consignes donnent son nom.
-- Pas de `motGeant`, pas de `carton`, pas de `titre3d`, pas de transitions sauf `balayage` ou `flash` doux entre deux grandes parties.
+- **Transitions propres** entre deux grandes parties et à l'entrée d'une capture ou d'un schéma plein cadre : `balayage`, `whip`, `zoomblur` ou `flash` doux, chacune avec son whoosh. Jamais sur une simple coupe dans une phrase.
+- Pas de `motGeant`, pas de `carton`, pas de `titre3d`, sauf si le style ou les consignes les demandent.
 
 ### YouTube (16:9)
 Comme la formation, avec plus de rythme : coupes plus serrées (`seuil` 0,25 à 0,3), une accroche forte dans les 10 premières secondes, encarts plus courts, zooms `lisse` plus fréquents, quelques `idee`.
@@ -77,6 +78,36 @@ Accroche en moins de 3 s. Coupes à chaque phrase, deux ou trois cadres alterné
 
 ### Pub
 Comme le court, plus serré : chaque phrase sert l'argument, le nom du produit bien lisible, fin sur l'appel à l'action.
+
+## Effets sonores
+
+Le kit (`sons/kit.json`, sons originaux et libres) est rangé par familles : `@whoosh` (transitions, chapitres), `@swoosh` (élément qui glisse : encart, définition, schéma, code, bandeau), `@pop` (idée, mot qui apparaît), `@clic` (point d'une liste, bouton, surlignage), `@ding` (validation), `@faux` (erreur), `@notif`, `@typing` (texte tapé), `@impact` (révélation, chiffre fort), `@riser` (tension avant une révélation), `@cash` (prix, argent), `@shutter` (capture), `@glitch` (courts et pubs). Une famille joue ses sons en rotation : jamais deux fois le même d'affilée.
+
+Posés automatiquement : `chapitre` (whoosh, swoosh en bandeau), `encart`, `definition`, `code`, `schema`, `tiers` (swoosh), `idee` (pop), `ecran` (whoosh), `surlignage` (clic), et chaque `transition`. Pour régler :
+- un son précis sur un élément : `"son": "@pop"` (ou un nom du kit : `"whoosh_2"`), `"volumeSon": 0.2` ;
+- aucun son sur un élément : `"son": null` ;
+- un son seul, calé sur un mot : `{"type": "son", "son": "@clic", "mot": 42}` (par exemple sur chaque point important d'une liste) ;
+- toute la vidéo sans effets sonores : `"effetsSonores": false` dans le plan, seulement si la personne le demande.
+Les volumes du kit sont réglés pour rester sous la voix. Formation : laisse les sons automatiques, ajoute-en peu. Court et pub : plus marqués (`@pop` sur les mots géants, `@whoosh` sur les plans, `@impact` sur la révélation).
+
+## Sur mesure : tout est possible
+
+Les éléments ci-dessous couvrent l'essentiel, mais tu n'es jamais limité à eux. Si le style ou les consignes demandent quelque chose qu'aucun élément ne fait (ouverture typographique, captures inclinées en perspective, personne dans un rond, cartes d'une forme particulière, animation de logo, graphique animé…), **écris-le** : un composant React (Remotion) dans `composants/<Nom>.tsx`, appelé dans le plan avec `{"type": "perso", "composant": "<Nom>", "mot": i, "jusqua": j, …}`. Tous les champs de l'événement arrivent dans `el`.
+
+```tsx
+import { AbsoluteFill, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { police } from "../../../polices";   // police(theme.policeTitre) : polices du style
+
+export default function Ouverture({ el, theme }: { el: any; theme: any }) {
+  const f = useCurrentFrame();                 // 0 = début de l'élément ; el.a - el.de = sa durée en images
+  const { width: W, height: H, fps } = useVideoConfig();
+  const entree = spring({ frame: f, fps, config: { damping: 200 } });
+  return <AbsoluteFill style={{ background: theme.fond, opacity: entree }}>…</AbsoluteFill>;
+}
+```
+- Images et captures : `staticFile("montage/assets/<fichier>")`. Couleurs et polices : `theme` (accent, fond, texte, police, policeTitre).
+- Un élément se dessine **au-dessus** de la vidéo. Pour cadrer la personne dans une forme (rond, carte), couvre l'image d'un fond percé de cette forme (`mask-image` ou SVG) : elle apparaît dans le trou. Avec `"couche": "decor"`, l'élément suit les zooms de la caméra.
+- Mêmes règles que le reste : sobre, une seule couleur d'accent, aucun emoji. Rends le brouillon et regarde les planches : une erreur dans le composant s'affiche dans la sortie du rendu.
 
 ## Chercher sur internet
 
@@ -126,7 +157,8 @@ Chaque événement s'ancre avec `"mot": i` (début du mot) et `"jusqua": j` (fin
 | `schema` | `titre`, `items: [{texte, surtitre, mot, actif}]`, `sens` (`horizontal`, `vertical`), `cote` (plein par défaut, fond sombre) | enchaînement, architecture |
 | `surlignage` | `x`, `y`, `l`, `h` (part de l'image), `legende`, `assombrir` (0.45) | désigner une zone d'un enregistrement d'écran |
 | `zoom` | `facteur`, `mode` : `lisse` (formation), `doux`, `sec`, `recul` ; `focus` [x, y] ; `entree`, `sortie` (s) | phrase importante, zone de l'écran |
-| `transition` | `style` : `balayage`, `flash` ; `duree` (0.3) | entre deux grandes parties |
+| `transition` | `style` : `balayage`, `whip`, `zoomblur`, `flash`, `volet` (panneau couleur), `leak` ; `duree` (0.3), `couleur` | entre deux grandes parties |
+| `perso` | `composant` (nom du fichier dans `composants/`) + tes propres champs | tout ce qu'aucun autre élément ne fait |
 
 **Courts et pubs**
 
@@ -141,7 +173,7 @@ Chaque événement s'ancre avec `"mot": i` (début du mot) et `"jusqua": j` (fin
 | `fleche` | `x`, `y` (la pointe), `angle`, `taille` | désigner |
 | `broll` / `image` | `src` (`montage/…`), `mode` : `plein`, `carte`, `haut` ; `zoom` [1, 1.1] | illustration |
 | `positionSousTitres` | `position` | déplacer les sous-titres |
-| `son` | `son` (`@famille` ou fichier), `volume` | effet isolé (si une bibliothèque existe) |
+| `son` | `son` (`@famille` ou nom du kit), `volume` | effet sonore calé sur un mot |
 
 Sous-titres : `"sousTitres": {"actif": true, "style": "formation" | "bold" | "fin", "position": 0.88, "motsParGroupe": 7}`. `"couleurs": {"45": "accent"}` colore un mot (index) : au plus un par groupe, et seulement si le style le fait.
 
@@ -160,5 +192,7 @@ Musique (si `$CLIPLEX_MUSIQUE` existe) : `"musique": {"src": "musique/<fichier>"
 - Chaque partie est annoncée clairement (formation).
 - Aucun texte sur le visage, aucun texte qui en chevauche un autre (vérifier sur les planches).
 - Aucun emoji, aucune couleur hors du thème, aucun texte qui brille.
+- Les transitions et l'arrivée des éléments ont leur effet sonore (sauf demande contraire).
+- Tout ce que le style et les consignes demandent est fait, au besoin avec un composant sur mesure.
 - Les illustrations correspondent exactement à ce qui est dit.
 - Fin nette.

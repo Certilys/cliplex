@@ -180,7 +180,16 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
     }
     mkdirSync(join(montage, 'assets'), { recursive: true })
     writeFileSync(join(montage, 'consignes.txt'), consignes(p, Boolean(style)))
-    writeFileSync(join(montage, 'rendre-brouillon.sh'), `#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "${join(moteur, 'outils', 'rendre.sh')}" "$(dirname "$0")" --brouillon\n`, { mode: 0o755 })
+    // Le script emporte les variables du dossier Cliplex : il marche aussi lancé hors de l'app (même texte que ./cliplex).
+    const v = variables()
+    writeFileSync(join(montage, 'rendre-brouillon.sh'), [
+      '#!/bin/bash',
+      '# Rend un brouillon (demi-résolution) pour vérifier le plan.',
+      `export CLIPLEX_OUTILS="${v.CLIPLEX_OUTILS}" CLIPLEX_STUDIO="${v.CLIPLEX_STUDIO}" CLIPLEX_POLICES="${v.CLIPLEX_POLICES}"`,
+      'export PATH="$CLIPLEX_OUTILS/bin:$CLIPLEX_OUTILS/node/bin:$PATH"',
+      `exec "${join(moteur, 'outils', 'rendre.sh')}" "$(dirname "$0")" --brouillon`,
+      ''
+    ].join('\n'), { mode: 0o755 })
     rmSync(join(montage, BROUILLON), { force: true })
     info('claude', 'Claude lit ton rush et écrit le montage.', 'agent')
     return await passeClaude(id, 'Monte cette vidéo en suivant CLAUDE.md, consignes.txt et style.md s’il existe. Pour rendre un brouillon, lance ./rendre-brouillon.sh. Termine par resume.md.', false, j)

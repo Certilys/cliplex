@@ -13,8 +13,9 @@ import json, os, pathlib, re, subprocess, sys
 FORMATS = {"9x16": (1080, 1920), "16x9": (1920, 1080), "1x1": (1080, 1080), "4x5": (1080, 1350)}
 
 ICI = pathlib.Path(__file__).resolve().parent
-# Bibliothèque de sons (facultative) : CLIPLEX_SONS/kit.json = {nom: {fichier, pic}, "_familles": {famille: [noms]}}
-SONS = pathlib.Path(os.environ["CLIPLEX_SONS"]) if os.environ.get("CLIPLEX_SONS") else None
+# Bibliothèque de sons : CLIPLEX_SONS/kit.json = {nom: {fichier, pic, volume}, "_familles": {famille: [noms]}}.
+# Par défaut, le kit libre du dépôt (moteur/sons, fabriqué par fabriquer.py).
+SONS = pathlib.Path(os.environ.get("CLIPLEX_SONS") or pathlib.Path(__file__).resolve().parent.parent / "sons")
 MUSIQUE = pathlib.Path(os.environ["CLIPLEX_MUSIQUE"]) if os.environ.get("CLIPLEX_MUSIQUE") else None
 # Polices de la personne (facultatif) : CLIPLEX_POLICES/polices.json = [{famille, fichier, graisse, style}]
 POLICES = pathlib.Path(os.environ["CLIPLEX_POLICES"]) if os.environ.get("CLIPLEX_POLICES") else None
@@ -27,7 +28,10 @@ KIT = json.loads((SONS / "kit.json").read_text()) if SONS and (SONS / "kit.json"
 SONS_AUTO = {"notif": "@notif", "particules": "@pop", "titre3d": "@clic",
              "flash": "@whoosh", "leak": "@whoosh", "whip": "@whoosh", "zoomblur": "@whoosh", "traverse": "@whoosh", "balayage": "@whoosh", "glitch": "@glitch",
              "motGeant": "@pop", "titre": "@typing", "carton": None, "croix": "@faux", "coche": "@ding",
-             "compteur": "@cash", "liste": "@clic", "broll": None, "image": "@whoosh", "fleche": "@clic", "carte": "@whoosh", "punch": None}
+             "compteur": "@cash", "liste": "@clic", "broll": None, "image": "@whoosh", "fleche": "@clic", "carte": "@whoosh", "punch": None,
+             # formation : discrets, ils accompagnent l'arrivée d'un élément sans la souligner
+             "chapitre": "@whoosh", "encart": "@swoosh", "idee": "@pop", "definition": "@swoosh", "ecran": "@whoosh",
+             "code": "@swoosh", "schema": "@swoosh", "tiers": "@swoosh", "surlignage": "@clic", "volet": "@whoosh", "impact": "@impact"}
 VOLUMES = {"whoosh": .32, "whoosh_court": .3, "whoosh_cine": .35, "whip": .3, "swoosh_leger": .35, "sweep": .3,
            "pop": .32, "pop_bulle": .35, "clic": .4, "clic_ui": .35, "coche": .35, "impact_grave": .4, "impact_zoom": .35,
            "bass_drop": .45, "riser": .3, "riser_long": .3, "glitch": .25, "glitch_cine": .3, "frappe": .3, "typing": .18,
@@ -250,12 +254,13 @@ def main(dossier):
     sons_auto = {**SONS_AUTO, **plan.get("sonsAuto", {})}
 
     def son(nom, t, volume=None, decalage=0.0):
+        if plan.get("effetsSonores") is False: return
         nom = choisir(nom)
         if not nom or not KIT: return
         # pas deux sons au même instant (empilement = effet « IA ») : on décale légèrement le second
         if any(abs(x["de"] - t) < 2 and x["nom"] == nom for x in sons): return
         k = KIT.get(nom)
-        if k: sons.append({"src": f"sons/{k['fichier']}", "de": max(0, t - F(k["pic"]) + F(decalage)), "volume": volume if volume is not None else VOLUMES.get(nom, .3), "nom": nom})
+        if k: sons.append({"src": f"sons/{k['fichier']}", "de": max(0, t - F(k["pic"]) + F(decalage)), "volume": volume if volume is not None else k.get("volume", VOLUMES.get(nom, .3)), "nom": nom})
         else: sons.append({"src": nom, "de": max(0, t + F(decalage)), "volume": volume if volume is not None else .3, "nom": nom})
 
     for ev in plan.get("evenements", []):
@@ -278,7 +283,7 @@ def main(dossier):
             continue
         if typ == "musiqueCoupe":  # silence musical (avant une révélation)
             de, a = ancre(ev, 0.8); elements.append({"type": "musiqueCoupe", "de": de, "a": a}); continue
-        de, a = ancre(ev, {"motGeant": 1.2, "titre": 2.5, "croix": 1.0, "coche": 1.0, "compteur": 1.6, "chapitre": 2.2, "tiers": 4.0, "encart": 4.0, "idee": 3.0, "definition": 4.0, "ecran": 4.0, "code": 5.0, "schema": 4.0, "surlignage": 2.5}.get(typ, 1.5))
+        de, a = ancre(ev, {"motGeant": 1.2, "titre": 2.5, "croix": 1.0, "coche": 1.0, "compteur": 1.6, "chapitre": 2.2, "tiers": 4.0, "encart": 4.0, "idee": 3.0, "definition": 4.0, "ecran": 4.0, "code": 5.0, "schema": 4.0, "surlignage": 2.5, "perso": 3.0}.get(typ, 1.5))
         el = {k: v for k, v in ev.items() if k not in ("mot", "jusqua", "duree", "decalage", "prolonger", "t")}
         el.update({"de": de, "a": a})
         if typ == "carton":  # cartons plein écran mot par mot, calés sur chaque mot
@@ -307,7 +312,7 @@ def main(dossier):
             transitions.append({"type": ev["sortie"], "a": a, "duree": F(0.25)})
             son(sons_auto.get(ev["sortie"]), a)
         elements.append(el)
-        s = ev.get("son", sons_auto.get(typ))
+        s = ev.get("son", sons_auto.get(typ) if not (typ == "chapitre" and ev.get("mode") == "bandeau") else "@swoosh")
         if typ == "carton" and ev.get("sonParCarte"):
             for c in el["cartes"]: son(ev["sonParCarte"], c["de"], ev.get("volumeSon"))
         elif s: son(s, de, ev.get("volumeSon"))

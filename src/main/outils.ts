@@ -3,6 +3,7 @@ import { homedir } from 'os'
 import { join } from 'path'
 import type { LigneJournal, Outil } from '../shared/types'
 import { chemins, lancer, suivre } from './environnement'
+import { dossierOutils } from './reglages'
 import { dossierMoteur, dossierStudio } from './moteur'
 
 export const MODELE_WHISPER = 'ggml-large-v3-turbo-q5_0.bin'
@@ -111,7 +112,7 @@ const DEFINITIONS: Definition[] = [
     commande: () => {
       const src = join(dossierMoteur(), 'studio')
       const d = dossierStudio()
-      return `mkdir -p "${d}" && cp -R "${src}/src" "${src}/package.json" "${src}/remotion.config.ts" "${src}/tsconfig.json" "${d}/" && cd "${d}" && npm install --no-audit --no-fund && npx remotion browser ensure`
+      return `mkdir -p "${d}" && cp -R "${src}/src" "${src}/package.json" "${src}/remotion.config.ts" "${src}/tsconfig.json" "${d}/" && cd "${d}" && npm install --no-audit --no-fund && npx remotion browser ensure && CLIPLEX_STUDIO="${d}" CLIPLEX_OUTILS="${dossierOutils()}" "${join(dossierMoteur(), 'outils', 'tester-rendu.sh')}"`
     },
     detecter: async () => {
       const d = dossierStudio()

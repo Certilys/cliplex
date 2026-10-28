@@ -12,6 +12,7 @@
 #   ./cliplex projet <titre> <genre> <format> <rush> [rush…]
 #                                               crée une vidéo (genre : formation, youtube, court, pub ; format : 16x9, 9x16, 1x1, 4x5)
 #   ./cliplex preparer <projet> [consignes]     prépare le rush et le dossier du montage
+#   ./cliplex renommer <projet> <titre>         change le titre (et le nom du dossier) d'une vidéo
 #   ./cliplex brouillon <projet>                brouillon à valider (demi-résolution), rendu si besoin, puis ouvert
 #   ./cliplex exporter <projet> [4k|hd]         export final après validation (4K par défaut)
 #   ./cliplex dossier [chemin]                  affiche (ou change) le dossier Cliplex
@@ -36,7 +37,8 @@ export PATH="$O/bin:$O/node/bin:$O/claude/node_modules/.bin:$HOME/.local/bin:/op
 export npm_config_cache="$O/cache/npm" UV_CACHE_DIR="$O/cache/uv" UV_PYTHON_INSTALL_DIR="$O/python-dist"
 
 maintenant() { date -u +%Y-%m-%dT%H:%M:%S.000Z; }
-slug() { echo "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed -E 's#^https?://(www\.)?##; s/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-${2:-48}; }
+# Accents retirés lettre par lettre (« Première » → « premiere ») : iconv sur macOS donne « premi'ere ».
+slug() { python3 -I -c "import sys,unicodedata;print(unicodedata.normalize('NFKD',sys.argv[1]).encode('ascii','ignore').decode())" "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's#^https?://(www\.)?##; s/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-${2:-48}; }
 libre() { local b="${2:-video}"; [ -n "$1" ] && b="$1"; local id="$b" n=2; while [ -e "$3/$id" ]; do id="$b-$n"; n=$((n+1)); done; echo "$id"; }
 # JSON : le Python des outils s'il est installé, sinon celui du Mac.
 py() { local p="$O/python/bin/python"; [ -x "$p" ] || p=python3; "$p" -I "$@"; }
@@ -78,6 +80,19 @@ nom() { case "$1" in ffmpeg) echo "ffmpeg" ;; node) echo "Node.js" ;; python) ec
 role() { case "$1" in ffmpeg) echo "découpe, assemble, exporte" ;; node) echo "fait tourner les animations" ;; python) echo "transcrit ta voix, en local" ;; modele) echo "reconnaît la parole" ;; debruiteur) echo "retire le bruit de fond" ;; studio) echo "dessine chaque image" ;; claude) echo "le monteur" ;; esac; }
 mo() { case "$1" in ffmpeg) echo 80 ;; node) echo 50 ;; python) echo 120 ;; modele) echo 575 ;; debruiteur) echo 1 ;; studio) echo 300 ;; claude) echo 60 ;; esac; }
 
+# Script de brouillon du montage : il emporte les variables du dossier Cliplex, pour marcher lancé
+# seul (Claude Code ouvert dans le dépôt) comme depuis l'app. src/main/moteur.ts écrit le même.
+script_brouillon() {
+  cat > "$1/rendre-brouillon.sh" <<FIN
+#!/bin/bash
+# Rend un brouillon (demi-résolution) pour vérifier le plan.
+export CLIPLEX_OUTILS="$CLIPLEX_OUTILS" CLIPLEX_STUDIO="$CLIPLEX_STUDIO" CLIPLEX_POLICES="$CLIPLEX_POLICES"
+export PATH="\$CLIPLEX_OUTILS/bin:\$CLIPLEX_OUTILS/node/bin:\$PATH"
+exec "$MOTEUR/outils/rendre.sh" "\$(dirname "\$0")" --brouillon
+FIN
+  chmod +x "$1/rendre-brouillon.sh"
+}
+
 installer() {
   echo "# $1"
   case "$1" in
@@ -86,7 +101,7 @@ installer() {
     python) mkdir -p "$O/bin" && curl -L --fail -sS "https://github.com/astral-sh/uv/releases/download/$UV/uv-$P_UV-apple-darwin.tar.gz" | tar xz -C "$O/bin" --strip-components 1 && "$O/bin/uv" venv --python 3.12 "$O/python" && "$O/bin/uv" pip install --python "$O/python/bin/python" numpy pywhispercpp ;;
     modele) mkdir -p "$O/modeles" && curl -L --fail --progress-bar -o "$O/modeles/$MODELE.part" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$MODELE" && mv "$O/modeles/$MODELE.part" "$O/modeles/$MODELE" ;;
     debruiteur) mkdir -p "$O/modeles" && curl -L --fail -sS -o "$O/modeles/sh.rnnn" https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn ;;
-    studio) mkdir -p "$O/studio" && cp -R "$MOTEUR/studio/src" "$MOTEUR/studio/package.json" "$MOTEUR/studio/remotion.config.ts" "$MOTEUR/studio/tsconfig.json" "$O/studio/" && cd "$O/studio" && npm install --no-audit --no-fund && npx remotion browser ensure ;;
+    studio) mkdir -p "$O/studio" && cp -R "$MOTEUR/studio/src" "$MOTEUR/studio/package.json" "$MOTEUR/studio/remotion.config.ts" "$MOTEUR/studio/tsconfig.json" "$O/studio/" && cd "$O/studio" && npm install --no-audit --no-fund && npx remotion browser ensure && "$MOTEUR/outils/tester-rendu.sh" ;;
     claude) mkdir -p "$O/claude" && npm install --prefix "$O/claude" --no-audit --no-fund @anthropic-ai/claude-code && touch "$O/claude/.cliplex" ;;
     *) echo "Outil inconnu : $1"; exit 1 ;;
   esac
@@ -249,7 +264,7 @@ l,h=F[p['format']]
 print('\n'.join([f\"Titre : {p['titre']}\",f\"Genre : {G[p.get('genre','formation')]}\",f\"Format de sortie : {p['format'].replace('x',':')} ({l}x{h}). Mets \\\"format\\\": {{\\\"largeur\\\": {l}, \\\"hauteur\\\": {h}}} dans le plan.\",
  'Style de la personne : style.md (à appliquer en priorité sur les règles générales).' if style else 'Style de la personne : aucun pour cette vidéo. Reste sobre (règles générales).',
  '','Consignes de la personne :',p.get('consignes','').strip() or '(aucune consigne particulière : applique les règles de montage)']))" "$P/projet.json" "$style" > "$M/consignes.txt"
-    printf '#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "%s" "$(dirname "$0")" --brouillon\n' "$MOTEUR/outils/rendre.sh" > "$M/rendre-brouillon.sh"; chmod +x "$M/rendre-brouillon.sh"
+    script_brouillon "$M"
     py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p.update(statut='montage',etape='claude',majLe=sys.argv[2]);p.pop('erreur',None);json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$P/projet.json" "$(maintenant)"
     echo "$M" ;;
 
@@ -259,8 +274,19 @@ print('\n'.join([f\"Titre : {p['titre']}\",f\"Genre : {G[p.get('genre','formatio
     B="$M/montage_brouillon.mp4"
     if [ ! -f "$B" ] || [ "$M/plan.json" -nt "$B" ]; then "$MOTEUR/outils/rendre.sh" "$M" --brouillon; fi
     py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p.update(statut='a-valider',brouillon='montage/montage_brouillon.mp4',majLe=sys.argv[2]);p.pop('etape',None);json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$P/projet.json" "$(maintenant)"
-    [ -z "$CLIPLEX_SANS_OUVRIR" ] && open "$M/montage_brouillon.mp4" || true
+    # Ouvert dans le lecteur, et montré dans le Finder si la fenêtre passe inaperçue.
+    [ -z "$CLIPLEX_SANS_OUVRIR" ] && { open -R "$M/montage_brouillon.mp4"; open "$M/montage_brouillon.mp4"; } || true
     echo "$M/montage_brouillon.mp4" ;;
+
+  renommer)
+    id="${1:?projet}"; titre="${2:?titre}"; R="$C/projets"; [ -f "$R/$id/projet.json" ] || { echo "Vidéo introuvable : $id"; exit 1; }
+    neuf="$(slug "$titre" 48)"; [ "$neuf" == "$id" ] || neuf="$(libre "$neuf" video "$R")"
+    # Le dossier de montage garde ses fichiers : seuls le titre, l'id et le nom du dossier changent.
+    [ "$neuf" == "$id" ] || mv "$R/$id" "$R/$neuf"
+    rm -rf "$R/$neuf/.montage.public"
+    py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p.update(id=sys.argv[2],titre=sys.argv[3],majLe=sys.argv[4]);json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$R/$neuf/projet.json" "$neuf" "$titre" "$(maintenant)"
+    [ -f "$R/$neuf/montage/rendre-brouillon.sh" ] && script_brouillon "$R/$neuf/montage"
+    echo "$neuf" ;;
 
   exporter)
     id="${1:?projet}"; q="${2:-4k}"; P="$C/projets/$id"; M="$P/montage"
@@ -271,5 +297,5 @@ print('\n'.join([f\"Titre : {p['titre']}\",f\"Genre : {G[p.get('genre','formatio
     [ -z "$CLIPLEX_SANS_OUVRIR" ] && open -R "$M/montage.mp4" || true
     echo "$M/montage.mp4" ;;
 
-  *) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

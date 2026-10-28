@@ -10,7 +10,7 @@ Tu accueilles quelqu'un qui vient de cloner Cliplex. Objectif : en une conversat
 ## 1. Ce qu'il faut
 
 Lance `./cliplex etat`. Explique en trois lignes :
-- Cliplex monte ses vidéos sur son Mac : sous-titres, zooms, chapitres, encarts, dans son style à elle.
+- Cliplex monte ses vidéos sur son Mac : sous-titres, zooms, chapitres, encarts, transitions, effets sonores, motion design, dans son style à elle.
 - Le monteur, c'est Claude Code, avec son abonnement (Pro ou Max). Elle l'utilise déjà, puisqu'elle te parle.
 - Tout va dans un seul dossier (`./cliplex dossier`). Le supprimer efface tout.
 
@@ -40,4 +40,4 @@ Le skill `style` se termine par des questions (police exacte, sous-titres, musiq
 
 ## 5. Première vidéo
 
-Montre le style en trois lignes (nom, couleurs, ce qui revient). Propose de monter sa première vidéo : skill `monter`.
+Montre le style en trois lignes (nom, couleurs, ce qui revient). Propose de monter sa première vidéo : skill `monter`. Dis-lui dès maintenant qu'elle pourra tout demander pour le montage (motion design, animations, transitions, effets sonores, une ambiance précise) : le moteur crée ce qui n'existe pas encore, il suffit de bien le décrire.

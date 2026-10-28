@@ -23,6 +23,12 @@ options = {"language": os.environ.get("CLIPLEX_LANGUE", "auto"), "token_timestam
            "beam_search": {"beam_size": 5, "patience": -1.0}}
 if prompt: options["initial_prompt"] = prompt
 modele = Model(str(MODELE), params_sampling_strategy=1, print_progress=False, print_realtime=False, redirect_whispercpp_logs_to=None)
+# Langue détectée une seule fois sur les 30 premières secondes de parole (« auto » à chaque énoncé
+# remplit la sortie d'avertissements et peut changer de langue d'un énoncé à l'autre).
+if options["language"] == "auto" and enonces:
+    debut = int(enonces[0][0] * sr)
+    try: options["language"] = modele.auto_detect_language(audio[debut:debut + 30 * sr])[0][0]
+    except Exception: pass
 
 mots = []
 for k, (s, e) in enumerate(enonces):
