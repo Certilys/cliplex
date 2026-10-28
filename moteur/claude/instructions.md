@@ -30,7 +30,7 @@ Tu travailles dans le dossier de montage du projet (dossier courant). Tout y est
 5. **Écrire `plan.json`** (format ci-dessous).
 6. **Rendre un brouillon** : `./rendre-brouillon.sh`, au premier plan (jamais en arrière-plan) : il prend quelques minutes, attends qu'il se termine.
 7. **Vérifier** `timeline.txt` et **toutes** les planches `controle/planche_*.jpg` comme un monteur exigeant (checklist). Corriger et re-rendre tant qu'un point n'est pas bon.
-8. **Terminer** en écrivant `resume.md` : 3 à 6 lignes sur tes choix (prises gardées, règles du style appliquées, illustrations et leurs sources). Ne lance pas le rendu final : Cliplex s'en charge.
+8. **Terminer** en écrivant `resume.md` : 3 à 6 lignes courtes sur tes choix (prises gardées, règles du style appliquées, illustrations et leurs sources), une par ligne, commençant par « - ». La personne les lit : des mots simples, jamais de nom de champ, de valeur technique ni de code couleur. Ne lance pas le rendu final : Cliplex s'en charge.
 
 Ne modifie jamais les rushs d'origine.
 

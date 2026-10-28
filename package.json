@@ -4,7 +4,12 @@
   "description": "Cliplex : tu tournes, ta vidéo est montée. Studio vidéo local, gratuit et open source.",
   "author": "Marius Djenontin",
   "license": "Apache-2.0",
-  "homepage": "https://cliplex.app",
+  "homepage": "https://github.com/mariusdjen/cliplex",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariusdjen/cliplex.git"
+  },
+  "bugs": "https://github.com/mariusdjen/cliplex/issues",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev --watch",

@@ -8,6 +8,24 @@ Gratuit et open source. Tu branches simplement ton propre compte Claude.
 
 ![Écran de montage](docs/ecran-montage.png)
 
+## Démarrer (avec Claude Code)
+
+La façon la plus simple aujourd'hui : tout se fait dans Claude Code, sans installer l'app. Il te faut un Mac et Claude Code avec un abonnement Claude Pro ou Max ; le reste s'installe tout seul.
+
+```bash
+git clone https://github.com/mariusdjen/cliplex.git
+cd cliplex
+claude
+```
+
+Dis bonjour, ou tape `/setup`. Claude t'explique ce qu'il faut, installe les outils (avec ton accord), te demande tes vidéos d'inspiration (fichiers ou liens YouTube), en tire ton style, puis monte tes vidéos. Tu regardes un brouillon, tu demandes des retouches, et rien n'est exporté (en 4K ou en 1080p) avant que tu le valides.
+
+Tu peux tout demander pour ton montage : une ouverture animée, des transitions, des effets sonores plus marqués, ton logo, l'ambiance d'une vidéo que tu aimes. Ce que le moteur ne sait pas encore faire, Claude l'écrit pour ta vidéo. Plus tu décris précisément, plus le résultat te ressemble.
+
+Le détail de chaque étape : [docs/comment-ca-marche.md](docs/comment-ca-marche.md).
+
+Tout va dans le dossier `espace/` du dépôt (ou dans celui de l'app si tu l'utilises aussi : ce sont les mêmes fichiers). Le script `./cliplex` fait chaque étape : `./cliplex aide` liste ses commandes, `./cliplex etat` montre ce qui est prêt.
+
 ## Pourquoi « Cliplex »
 
 Clip Express : ta vidéo montée en quelques minutes. Et un lexique : Cliplex apprend le style de tes vidéos préférées pour monter les tiennes de la même façon.
@@ -38,25 +56,11 @@ Version 0.1, en développement actif. macOS d'abord, Windows et Linux ensuite.
 | Animations sur mesure écrites par Claude pour chaque vidéo | Fait |
 | Musiques libres de droits | À venir |
 
-## Utiliser avec Claude Code, sans l'app
+## L'app (en développement)
 
-Tu peux aussi tout faire depuis Claude Code, sans lancer l'app. Il te faut un Mac et Claude Code avec un abonnement Claude Pro ou Max ; le reste s'installe tout seul.
+Une app Mac reprend le même parcours avec une interface : accueil guidé, inspirations, style, montage, validation du brouillon. Elle n'a pas encore de version prête à installer : pour l'essayer, lance-la depuis le code.
 
-```bash
-git clone https://github.com/mariusdjen/cliplex.git
-cd cliplex
-claude
-```
-
-Dis bonjour, ou tape `/setup`. Claude t'explique ce qu'il faut, installe les outils (avec ton accord), te demande tes vidéos d'inspiration (fichiers ou liens YouTube), en tire ton style, puis monte tes vidéos. Tu regardes un brouillon, tu demandes des retouches, et rien n'est exporté (en 4K ou en 1080p) avant que tu le valides.
-
-Tu peux tout demander pour ton montage : une ouverture animée, des transitions, des effets sonores plus marqués, ton logo, l'ambiance d'une vidéo que tu aimes. Ce que le moteur ne sait pas encore faire, Claude l'écrit pour ta vidéo. Plus tu décris précisément, plus le résultat te ressemble.
-
-Le détail de chaque étape : [docs/comment-ca-marche.md](docs/comment-ca-marche.md).
-
-Tout va dans le dossier `espace/` du dépôt (ou dans celui de l'app si tu l'utilises aussi : ce sont les mêmes fichiers). Le script `./cliplex` fait chaque étape : `./cliplex aide` liste ses commandes, `./cliplex etat` montre ce qui est prêt.
-
-## Installer pour développer
+### Installer pour développer
 
 Prérequis : macOS, Node.js 20 ou plus.
 
@@ -72,11 +76,17 @@ Les outils de montage (ffmpeg, Node, Python et whisper, Remotion, Claude Code si
 ## Structure
 
 ```
-src/main/        processus principal Electron : outils, projets, Claude
-src/preload/     pont sécurisé entre l'interface et le système
-src/renderer/    interface React (Tailwind)
-src/shared/      types communs
+cliplex              le parcours complet en ligne de commande (utilisé par Claude Code)
+.claude/skills/      /setup, /style et /monter : ce que Claude fait à chaque étape
+moteur/claude/       les règles du monteur, copiées dans chaque montage
+moteur/inspirations/ analyse des inspirations et écriture du style
+moteur/outils/       préparation du rush, transcription locale, compilation du plan, rendu
+moteur/studio/       les éléments animés (Remotion) : chapitres, encarts, captures, sous-titres…
+moteur/sons/         le kit d'effets sonores, original et libre
+src/                 l'app Electron (React, Tailwind)
 ```
+
+Tout ce que Claude doit faire est écrit en clair dans `moteur/` et `.claude/` : tu peux le lire et l'adapter.
 
 ## Contribuer
 
