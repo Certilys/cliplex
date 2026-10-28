@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { EtapeMontage, Genre, LigneMontage, Projet, Style } from '../../../shared/types'
+import type { EtapeMontage, Genre, LigneMontage, Projet, Qualite, Style } from '../../../shared/types'
 import { Activite } from '../composants/Activite'
 import { BarreHaut } from '../composants/Coquille'
 import { Icone } from '../composants/Icone'
@@ -23,7 +23,8 @@ const STATUTS: Record<Projet['statut'], { nom: string; ton: 'ok' | 'v' | 'g' }> 
   brouillon: { nom: 'Sans rush', ton: 'g' },
   pret: { nom: 'Prêt à monter', ton: 'v' },
   montage: { nom: 'Montage en cours', ton: 'v' },
-  monte: { nom: 'Monté', ton: 'ok' }
+  'a-valider': { nom: 'Brouillon à valider', ton: 'v' },
+  monte: { nom: 'Exporté', ton: 'ok' }
 }
 
 const SUGGESTIONS = ['Chapitres pour chaque partie', "Captures d'écran quand je parle d'un outil", 'Sous-titres', 'Pas de musique', 'Je m’appelle …']
@@ -129,7 +130,8 @@ function Vide({ onCreer }: { onCreer: () => void }) {
 const ETAPES: { id: EtapeMontage; nom: string }[] = [
   { id: 'preparation', nom: 'Préparation du rush' },
   { id: 'claude', nom: 'Montage par Claude' },
-  { id: 'rendu', nom: 'Rendu final' }
+  { id: 'validation', nom: 'Brouillon' },
+  { id: 'rendu', nom: 'Export' }
 ]
 
 function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => void }) {
@@ -137,7 +139,9 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
   const [lignes, setLignes] = useState<LigneMontage[]>([])
   const [etape, setEtape] = useState<EtapeMontage | undefined>(projet.etape)
   const [style, setStyle] = useState<Style | null>(null)
+  const [reglages, setReglages] = useState(false)
   const enCours = projet.statut === 'montage'
+  const aValider = projet.statut === 'a-valider' || projet.statut === 'monte'
 
   useEffect(() => {
     window.cliplex.style.lire().then(setStyle)
@@ -160,6 +164,12 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
     onChange({ ...projet, consignes, statut: 'montage', etape: 'preparation', erreur: undefined })
     onChange(await window.cliplex.montage.lancer(projet.id))
   }
+  const suivre = async (etape: EtapeMontage, action: Promise<Projet>) => {
+    setLignes([])
+    setEtape(etape)
+    onChange({ ...projet, statut: 'montage', etape, erreur: undefined })
+    onChange(await action)
+  }
   const modifier = async (partiel: Partial<Projet>) => onChange(await window.cliplex.projets.modifier(projet.id, partiel))
   const ajouter = (s: string) => {
     const c = consignes.trim() ? `${consignes.trim()}\n${s}.` : `${s}.`
@@ -180,8 +190,10 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
           </div>
           {enCours || (projet.erreur && lignes.length) ? (
             <Progression etape={etape} lignes={lignes} />
-          ) : projet.video ? (
-            <video key={projet.video + projet.majLe} src={window.cliplex.projets.adresse(projet.id, projet.video)} controls className="max-h-[78%] max-w-[86%] rounded-[14px] bg-black" />
+          ) : projet.statut === 'monte' && projet.video ? (
+            <Lecteur projet={projet} fichier={projet.video} legende={projet.qualite === '4k' ? 'Vidéo exportée en 4K' : 'Vidéo exportée'} />
+          ) : projet.statut === 'a-valider' && projet.brouillon ? (
+            <Lecteur projet={projet} fichier={projet.brouillon} legende="Brouillon en demi-résolution : le rythme, les textes et les animations sont ceux de la vidéo finale" />
           ) : (
             <Cadre format={projet.format} vide={!projet.rushs.length} />
           )}
@@ -191,8 +203,23 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
         </div>
       </div>
 
+      {aValider && !enCours && !reglages ? (
+        <Validation
+          projet={projet}
+          onRetoucher={(demande) => suivre('claude', window.cliplex.montage.retoucher(projet.id, demande))}
+          onExporter={(qualite) => suivre('rendu', window.cliplex.montage.exporter(projet.id, qualite))}
+          onReglages={() => setReglages(true)}
+        />
+      ) : (
       <aside className="flex w-[360px] flex-none flex-col border-l border-bord bg-white">
-        <div className="border-b border-bord-2 px-5 pb-3.5 pt-[18px] text-[15px] font-bold">Avant de lancer</div>
+        <div className="flex items-center border-b border-bord-2 px-5 pb-3.5 pt-[18px] text-[15px] font-bold">
+          Avant de lancer
+          {aValider && !enCours && (
+            <button className="ml-auto text-[12.5px] font-semibold text-violet hover:text-violet-fonce" onClick={() => setReglages(false)}>
+              Revenir au brouillon
+            </button>
+          )}
+        </div>
         <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-5 py-[18px]">
           <div>
             <span className="libelle">Rushs</span>
@@ -257,17 +284,94 @@ function Fiche({ projet, onChange }: { projet: Projet; onChange: (p: Projet) => 
             </button>
           ) : (
             <button className="btn-violet h-10" disabled={!projet.rushs.length} onClick={lancer}>
-              {projet.video ? 'Refaire le montage' : 'Lancer le montage'}
+              {projet.video || projet.brouillon ? 'Refaire le montage' : 'Lancer le montage'}
             </button>
           )}
           <small className="text-center text-[11.5px] text-doux">
-            {!projet.rushs.length ? 'Ajoute d’abord un rush' : enCours ? 'Tu peux continuer à utiliser Cliplex pendant ce temps' : 'Préparation, montage par Claude, puis rendu'}
+            {!projet.rushs.length ? 'Ajoute d’abord un rush' : enCours ? 'Tu peux continuer à utiliser Cliplex pendant ce temps' : 'Préparation, montage par Claude, puis un brouillon à valider'}
           </small>
         </div>
       </aside>
+      )}
     </div>
   )
 }
+
+function Lecteur({ projet, fichier, legende }: { projet: Projet; fichier: string; legende: string }) {
+  return (
+    <div className="flex max-h-[86%] max-w-[86%] flex-col items-center gap-3">
+      <video key={fichier + projet.majLe} src={window.cliplex.projets.adresse(projet.id, fichier)} controls className="min-h-0 max-w-full rounded-[14px] bg-black" />
+      <small className="text-[12px] text-[#8C879A]">{legende}</small>
+    </div>
+  )
+}
+
+const QUALITES: { id: Qualite; nom: string; texte: string }[] = [
+  { id: '4k', nom: '4K', texte: 'Plus nette, plus lente' },
+  { id: 'hd', nom: '1080p', texte: 'Plus rapide, plus léger' }
+]
+
+function Validation({ projet, onRetoucher, onExporter, onReglages }: { projet: Projet; onRetoucher: (demande: string) => void; onExporter: (q: Qualite) => void; onReglages: () => void }) {
+  const [demande, setDemande] = useState('')
+  const [qualite, setQualite] = useState<Qualite>(projet.qualite ?? '4k')
+  const [resumeOuvert, setResumeOuvert] = useState(false)
+  const exporte = projet.statut === 'monte'
+  return (
+    <aside className="flex w-[360px] flex-none flex-col border-l border-bord bg-white">
+      <div className="flex items-center border-b border-bord-2 px-5 pb-3.5 pt-[18px] text-[15px] font-bold">
+        {exporte ? 'Vidéo exportée' : 'Valider le brouillon'}
+        <button className="ml-auto text-[12.5px] font-semibold text-muet hover:text-encre" onClick={onReglages}>
+          Réglages
+        </button>
+      </div>
+      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-5 py-[18px]">
+        <p className="text-[12.5px] leading-relaxed text-muet">
+          {exporte ? 'Tu peux encore demander une retouche : Claude rendra un nouveau brouillon avant de réexporter.' : 'Regarde le brouillon en entier. Rien n’est exporté tant que tu ne l’as pas validé.'}
+        </p>
+        {projet.resume && (
+          <div>
+            <span className="libelle">Ce que Claude a fait</span>
+            <div className={`whitespace-pre-line rounded-[10px] border border-bord bg-fond px-3 py-2.5 text-[12px] leading-relaxed text-encre-2 ${resumeOuvert ? '' : 'line-clamp-6'}`}>{nettoyer(projet.resume)}</div>
+            <button className="mt-1.5 text-[12px] font-semibold text-violet hover:text-violet-fonce" onClick={() => setResumeOuvert(!resumeOuvert)}>
+              {resumeOuvert ? 'Réduire' : 'Tout lire'}
+            </button>
+          </div>
+        )}
+        <div>
+          <span className="libelle">Une retouche ?</span>
+          <textarea className="champ min-h-[96px] resize-none leading-relaxed" value={demande} placeholder="Ex. : le titre du chapitre 2 arrive trop tôt. Plus de zooms quand je montre l’écran. Retire la liste à 1 min 10." onChange={(e) => setDemande(e.target.value)} />
+          <button className="btn-blanc mt-2 h-9 w-full" disabled={!demande.trim()} onClick={() => onRetoucher(demande)}>
+            <Icone nom="crayon" />
+            Demander la retouche
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2.5 border-t border-bord-2 px-5 py-3.5">
+        {projet.erreur && <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700">{projet.erreur}</p>}
+        <div className="grid grid-cols-2 gap-1.5">
+          {QUALITES.map((q) => (
+            <button key={q.id} onClick={() => setQualite(q.id)} className={`rounded-lg border px-2.5 py-2 text-left ${q.id === qualite ? 'border-violet shadow-[0_0_0_3px_#F2EAFC]' : 'border-bord hover:border-[#D4D4D8]'}`}>
+              <b className="block text-[12.5px] font-semibold">{q.nom}</b>
+              <small className="text-[11px] leading-tight text-muet">{q.texte}</small>
+            </button>
+          ))}
+        </div>
+        <button className="btn-violet h-10" onClick={() => onExporter(qualite)}>
+          {exporte ? 'Exporter à nouveau' : 'Valider et exporter'}
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+/** Le résumé de Claude est en Markdown : on l'affiche en texte simple. */
+const nettoyer = (t: string) =>
+  t
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '· ')
+    .trim()
 
 function Progression({ etape, lignes }: { etape?: EtapeMontage; lignes: LigneMontage[] }) {
   const rang = ETAPES.findIndex((e) => e.id === etape)

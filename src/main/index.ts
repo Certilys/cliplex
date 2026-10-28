@@ -3,12 +3,12 @@ import { is } from '@electron-toolkit/utils'
 import { writeFileSync } from 'fs'
 import { join, normalize } from 'path'
 import { pathToFileURL } from 'url'
-import type { Activite, Genre, LigneJournal, Projet, Reglages } from '../shared/types'
+import type { Activite, Genre, LigneJournal, Projet, Qualite, Reglages } from '../shared/types'
 import { connecterClaude, etatChrome, etatClaude, installerExtension } from './claude'
 import { installerOutil, listerOutils } from './outils'
 import { copierRushs, creerProjet, dossierProjet, listerProjets, modifierProjet } from './projets'
 import { avecSousDossier, ecrireReglages, lireReglages } from './reglages'
-import { arreterMontage, lancerMontage } from './moteur'
+import { arreterMontage, exporterMontage, lancerMontage, retoucherMontage } from './moteur'
 import {
   ajouterFichiers,
   ajouterLien,
@@ -125,6 +125,12 @@ function brancherIpc(): void {
 
   ipcMain.handle('montage:lancer', (_e, id: string) =>
     lancerMontage(id, (etape, a) => fenetre?.webContents.send('montage:journal', { id, etape, ...a }))
+  )
+  ipcMain.handle('montage:retoucher', (_e, id: string, demande: string) =>
+    retoucherMontage(id, demande, (etape, a) => fenetre?.webContents.send('montage:journal', { id, etape, ...a }))
+  )
+  ipcMain.handle('montage:exporter', (_e, id: string, qualite: Qualite) =>
+    exporterMontage(id, qualite, (etape, a) => fenetre?.webContents.send('montage:journal', { id, etape, ...a }))
   )
   ipcMain.handle('montage:arreter', (_e, id: string) => arreterMontage(id))
 }

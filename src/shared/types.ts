@@ -123,15 +123,24 @@ export interface Projet {
   rushs: { nom: string; taille: number }[]
   creeLe: string
   majLe: string
-  statut: 'brouillon' | 'pret' | 'montage' | 'monte'
+  statut: 'brouillon' | 'pret' | 'montage' | 'a-valider' | 'monte'
   /** Étape en cours pendant un montage. */
   etape?: EtapeMontage
+  /** Brouillon à regarder avant l'export, relatif au dossier du projet. */
+  brouillon?: string
+  /** Ce que Claude a fait (montage/resume.md). */
+  resume?: string
+  /** Qualité du dernier export. */
+  qualite?: Qualite
   /** Vidéo finale, relative au dossier du projet. */
   video?: string
   erreur?: string
 }
 
-export type EtapeMontage = 'preparation' | 'claude' | 'rendu' | 'fini'
+export type EtapeMontage = 'preparation' | 'claude' | 'validation' | 'rendu' | 'fini'
+
+/** Export final : taille du format (1080p) ou deux fois plus grand (4K). */
+export type Qualite = 'hd' | '4k'
 
 export interface LigneMontage extends Activite {
   id: string
@@ -188,6 +197,10 @@ export interface Api {
   }
   montage: {
     lancer(id: string): Promise<Projet>
+    /** Après le brouillon : Claude corrige ce que la personne demande et rend un nouveau brouillon. */
+    retoucher(id: string, demande: string): Promise<Projet>
+    /** Brouillon validé : rendu final. */
+    exporter(id: string, qualite: Qualite): Promise<Projet>
     arreter(id: string): Promise<void>
     journal(rappel: (ligne: LigneMontage) => void): () => void
   }

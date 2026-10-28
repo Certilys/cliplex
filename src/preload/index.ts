@@ -54,6 +54,8 @@ const api: Api = {
   },
   montage: {
     lancer: (id) => ipcRenderer.invoke('montage:lancer', id),
+    retoucher: (id, demande) => ipcRenderer.invoke('montage:retoucher', id, demande),
+    exporter: (id, qualite) => ipcRenderer.invoke('montage:exporter', id, qualite),
     arreter: (id) => ipcRenderer.invoke('montage:arreter', id),
     journal: (rappel) => {
       const ecoute = (_e: unknown, ligne: LigneMontage) => rappel(ligne)

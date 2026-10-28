@@ -28,11 +28,27 @@ Version 0.1, en développement actif. macOS d'abord, Windows et Linux ensuite.
 | --- | --- |
 | Premier lancement guidé (besoins, objectifs, dossier, installation, Claude, inspirations) | Fait |
 | Projets vidéo : genre, format, rushs, consignes | Fait |
+| Brouillon à valider, retouches, export 4K ou 1080p | Fait |
+| Utilisation sans l'app, depuis Claude Code (`./cliplex`) | Fait |
 | Moteur de montage automatique (formation, YouTube, courts, pubs) | Fait, en amélioration |
 | Inspirations (vidéos, images, liens YouTube) et style appris | Fait |
 | Idées, scripts et planning | À venir |
 | Prompteur sur téléphone, décor de tournage | À venir |
 | Banque de sons libres de droits | À venir |
+
+## Utiliser avec Claude Code, sans l'app
+
+Tu peux aussi tout faire depuis Claude Code, sans lancer l'app :
+
+```bash
+git clone https://github.com/mariusdjen/cliplex.git
+cd cliplex
+claude
+```
+
+Dis bonjour. Claude t'explique ce qu'il faut, installe les outils (avec ton accord), te demande tes vidéos d'inspiration (fichiers ou liens YouTube), en tire ton style, puis monte tes vidéos. Tu regardes un brouillon, tu demandes des retouches, et rien n'est exporté (en 4K ou en 1080p) avant que tu le valides.
+
+Tout va dans le dossier `espace/` du dépôt (ou dans celui de l'app si tu l'utilises aussi : ce sont les mêmes fichiers). Le script `./cliplex` fait chaque étape ; lance-le sans argument pour voir ses commandes.
 
 ## Installer pour développer
 

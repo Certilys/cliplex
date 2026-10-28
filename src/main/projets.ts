@@ -45,14 +45,15 @@ function rushs(id: string): Projet['rushs'] {
 function lire(id: string): Projet | null {
   try {
     const p = JSON.parse(readFileSync(join(dossierProjet(id), 'projet.json'), 'utf8')) as Projet
-    return { ...p, rushs: rushs(id) }
+    const resume = join(dossierProjet(id), 'montage', 'resume.md')
+    return { ...p, rushs: rushs(id), resume: existsSync(resume) ? readFileSync(resume, 'utf8') : undefined }
   } catch {
     return null
   }
 }
 
 function ecrire(p: Projet): Projet {
-  const { rushs: _, ...stocke } = p
+  const { rushs: _, resume: __, ...stocke } = p
   writeFileSync(join(dossierProjet(p.id), 'projet.json'), JSON.stringify(stocke, null, 2))
   return lire(p.id) ?? p
 }

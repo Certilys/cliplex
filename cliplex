@@ -1,0 +1,234 @@
+#!/bin/bash
+# Cliplex sans l'app : les mêmes étapes, les mêmes fichiers, depuis le Terminal ou Claude Code.
+# Le dossier Cliplex est partagé avec l'app : ce qui est fait ici s'y retrouve, et inversement.
+#
+#   ./cliplex etat                              ce qui est prêt, ce qui manque
+#   ./cliplex installer [outil]                 installe les outils manquants dans <Cliplex>/outils
+#   ./cliplex inspiration <fichier|lien> [note] ajoute une inspiration (vidéo, image ou lien)
+#   ./cliplex mesurer <inspiration>             mesures d'une vidéo d'inspiration (planches, coupes, transcription)
+#   ./cliplex inspiration-finie <inspiration>   enregistre l'analyse (fiche.md et regles.json écrits)
+#   ./cliplex style-preparer                    liste les inspirations analysées pour écrire le style
+#   ./cliplex style-fini                        enregistre le style (style.md et style.json écrits)
+#   ./cliplex projet <titre> <genre> <format> <rush> [rush…]
+#                                               crée une vidéo (genre : formation, youtube, court, pub ; format : 16x9, 9x16, 1x1, 4x5)
+#   ./cliplex preparer <projet> [consignes]     prépare le rush et le dossier du montage
+#   ./cliplex brouillon <projet>                brouillon à valider (demi-résolution), rendu si besoin, puis ouvert
+#   ./cliplex exporter <projet> [4k|hd]         export final après validation (4K par défaut)
+#   ./cliplex dossier [chemin]                  affiche (ou change) le dossier Cliplex
+set -e
+DEPOT="$(cd "$(dirname "$0")" && pwd)"
+MOTEUR="$DEPOT/moteur"
+REGLAGES="$HOME/Library/Application Support/Cliplex/reglages.json"
+
+# Dossier Cliplex : CLIPLEX_DOSSIER, sinon celui choisi dans l'app, sinon <dépôt>/espace.
+dossier() {
+  local d="${CLIPLEX_DOSSIER:-}"
+  [ -z "$d" ] && [ -f "$REGLAGES" ] && d="$(plutil -extract dossier raw -o - "$REGLAGES" 2>/dev/null || true)"
+  # Sans l'app : l'espace est dans le dépôt (dossier espace/, ignoré par Git). Supprimer le clone efface tout.
+  if [ -z "$d" ] || [ "$d" == "null" ]; then echo "$DEPOT/espace"; return; fi
+  [ "$(basename "$d" | tr '[:upper:]' '[:lower:]')" == "cliplex" ] || d="$d/Cliplex"
+  echo "$d"
+}
+C="$(dossier)"; O="$C/outils"
+mkdir -p "$C"
+export CLIPLEX_MOTEUR="$MOTEUR" CLIPLEX_OUTILS="$O" CLIPLEX_STUDIO="$O/studio" CLIPLEX_POLICES="$C/bibliotheque/polices"
+export PATH="$O/bin:$O/node/bin:$O/claude/node_modules/.bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export npm_config_cache="$O/cache/npm" UV_CACHE_DIR="$O/cache/uv" UV_PYTHON_INSTALL_DIR="$O/python-dist"
+
+maintenant() { date -u +%Y-%m-%dT%H:%M:%S.000Z; }
+slug() { echo "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed -E 's#^https?://(www\.)?##; s/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-${2:-48}; }
+libre() { local b="${2:-video}"; [ -n "$1" ] && b="$1"; local id="$b" n=2; while [ -e "$3/$id" ]; do id="$b-$n"; n=$((n+1)); done; echo "$id"; }
+# JSON : le Python des outils s'il est installé, sinon celui du Mac.
+py() { local p="$O/python/bin/python"; [ -x "$p" ] || p=python3; "$p" -I "$@"; }
+
+ARCH=$(uname -m)
+if [ "$ARCH" == "arm64" ]; then P_NODE=arm64 P_UV=aarch64 P_FF=arm64; else P_NODE=x64 P_UV=x86_64 P_FF=amd64; fi
+NODE=24.22.1; UV=0.13.6; MODELE=ggml-large-v3-turbo-q5_0.bin
+
+present() {
+  case "$1" in
+    ffmpeg) [ -x "$O/bin/ffmpeg" ] ;;
+    node) [ -x "$O/node/bin/node" ] ;;
+    python) [ -x "$O/python/bin/python" ] && "$O/python/bin/python" -c 'import numpy, pywhispercpp' 2>/dev/null ;;
+    modele) [ -f "$O/modeles/$MODELE" ] && [ "$(stat -f %z "$O/modeles/$MODELE")" -gt 400000000 ] ;;
+    debruiteur) [ -f "$O/modeles/sh.rnnn" ] ;;
+    studio) [ -f "$O/studio/node_modules/remotion/package.json" ] && cmp -s "$MOTEUR/studio/package.json" "$O/studio/package.json" ;;
+    claude) command -v claude >/dev/null ;;
+  esac
+}
+
+installer() {
+  echo "# $1"
+  case "$1" in
+    ffmpeg) mkdir -p "$O/bin" && cd "$O/bin" && for x in ffmpeg ffprobe; do curl -L --fail --progress-bar -o $x.zip "https://ffmpeg.martin-riedl.de/redirect/latest/macos/$P_FF/release/$x.zip" && unzip -oq $x.zip && rm $x.zip; done ;;
+    node) mkdir -p "$O/node" && curl -L --fail --progress-bar "https://nodejs.org/dist/v$NODE/node-v$NODE-darwin-$P_NODE.tar.gz" | tar xz -C "$O/node" --strip-components 1 ;;
+    python) mkdir -p "$O/bin" && curl -L --fail -sS "https://github.com/astral-sh/uv/releases/download/$UV/uv-$P_UV-apple-darwin.tar.gz" | tar xz -C "$O/bin" --strip-components 1 && "$O/bin/uv" venv --python 3.12 "$O/python" && "$O/bin/uv" pip install --python "$O/python/bin/python" numpy pywhispercpp ;;
+    modele) mkdir -p "$O/modeles" && curl -L --fail --progress-bar -o "$O/modeles/$MODELE.part" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$MODELE" && mv "$O/modeles/$MODELE.part" "$O/modeles/$MODELE" ;;
+    debruiteur) mkdir -p "$O/modeles" && curl -L --fail -sS -o "$O/modeles/sh.rnnn" https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn ;;
+    studio) mkdir -p "$O/studio" && cp -R "$MOTEUR/studio/src" "$MOTEUR/studio/package.json" "$MOTEUR/studio/remotion.config.ts" "$MOTEUR/studio/tsconfig.json" "$O/studio/" && cd "$O/studio" && npm install --no-audit --no-fund && npx remotion browser ensure ;;
+    claude) mkdir -p "$O/claude" && npm install --prefix "$O/claude" --no-audit --no-fund @anthropic-ai/claude-code && touch "$O/claude/.cliplex" ;;
+    *) echo "Outil inconnu : $1"; exit 1 ;;
+  esac
+}
+
+OUTILS="ffmpeg node python modele debruiteur studio claude"
+cmd="${1:-etat}"; shift || true
+
+case "$cmd" in
+  dossier)
+    if [ -n "$1" ]; then
+      mkdir -p "$(dirname "$REGLAGES")"
+      d="$(cd "$1" && pwd)"
+      if [ -f "$REGLAGES" ]; then py -c "import json,sys;f=sys.argv[1];r=json.load(open(f));r['dossier']=sys.argv[2];json.dump(r,open(f,'w'),indent=2)" "$REGLAGES" "$d"
+      else printf '{\n  "accueilFini": false,\n  "objectifs": [],\n  "dossier": "%s"\n}\n' "$d" > "$REGLAGES"; fi
+      C="$(dossier)"; mkdir -p "$C"
+    fi
+    echo "$C" ;;
+
+  etat)
+    echo "Dossier Cliplex : $C"
+    echo; echo "Outils :"
+    for o in $OUTILS; do if present $o; then echo "  ok        $o"; else echo "  manquant  $o"; fi; done
+    if command -v claude >/dev/null && ls "$HOME/Library/Application Support/Google/Chrome/"*/Extensions/fcoeoabgfenejglbffodgkkbkcdhcgfn >/dev/null 2>&1; then echo "  ok        extension Claude pour Chrome (liens YouTube)"; else echo "  manquant  extension Claude pour Chrome (seulement pour les liens YouTube)"; fi
+    echo; echo "Inspirations :"
+    n=0; for f in "$C"/inspirations/*/inspiration.json; do [ -f "$f" ] || continue; n=$((n+1)); py -c "import json,sys;i=json.load(open(sys.argv[1]));print(f\"  {i['etat']:<10}{i['id']}  ({i['type']}) {i.get('titre','')}\")" "$f"; done
+    if [ $n -eq 0 ]; then echo "  aucune"; fi
+    echo; if [ -f "$C/style/style.md" ]; then echo "Style : $(head -1 "$C/style/style.md" | sed 's/^# //')"; else echo "Style : pas encore créé"; fi
+    echo; echo "Vidéos :"
+    n=0; for f in "$C"/projets/*/projet.json; do [ -f "$f" ] || continue; n=$((n+1)); py -c "import json,sys;p=json.load(open(sys.argv[1]));print(f\"  {p['statut']:<10}{p['id']}  {p.get('genre','formation')} {p['format']}\")" "$f"; done
+    if [ $n -eq 0 ]; then echo "  aucune"; fi ;;
+
+  installer)
+    for o in ${1:-$OUTILS}; do
+      if present $o; then echo "ok : $o"; continue; fi
+      ( installer $o ) && present $o && echo "ok : $o" || { echo "ÉCHEC : $o (voir docs/installation-manuelle.md)"; exit 1; }
+    done ;;
+
+  inspiration)
+    src="${1:?fichier ou lien}"; note="$2"; R="$C/inspirations"; mkdir -p "$R"
+    if [[ "$src" =~ ^https?:// ]]; then
+      propre="$(echo "$src" | sed -E 's/[?&](si|feature|pp)=[^&]*//g')"
+      id="$(libre "$(slug "$propre" 40)" inspiration "$R")"; mkdir -p "$R/$id"
+      type=lien; titre="$(echo "$src" | sed -E 's#^https?://(www\.)?##')"; source="$src"
+    else
+      [ -f "$src" ] || { echo "Fichier introuvable : $src"; exit 1; }
+      nom="$(basename "$src")"; titre="${nom%.*}"
+      case "$(echo "${nom##*.}" | tr '[:upper:]' '[:lower:]')" in mp4|mov|m4v|webm|mkv) type=video ;; jpg|jpeg|png|webp|gif|heic) type=image ;; *) echo "Format non pris en charge : $nom"; exit 1 ;; esac
+      id="$(libre "$(slug "$titre" 40)" inspiration "$R")"; mkdir -p "$R/$id/media"; cp "$src" "$R/$id/media/"; source="$nom"
+    fi
+    py -c "import json,sys;d=dict(id=sys.argv[2],type=sys.argv[3],titre=sys.argv[4],source=sys.argv[5],ajouteLe=sys.argv[6],etat='nouvelle');sys.argv[7] and d.update(note=sys.argv[7]);json.dump(d,open(sys.argv[1],'w'),indent=2,ensure_ascii=False)" \
+      "$R/$id/inspiration.json" "$id" "$type" "$titre" "$source" "$(maintenant)" "$note"
+    # Consignes d'analyse, les mêmes que dans l'app.
+    py -c "
+import sys
+m,src,note,dest=sys.argv[1:5]
+t=open(f'{m}/analyse-{sys.argv[5]}.md').read().replace('{{LIEN}}',src).replace('{{NOTE}}',note).replace('{{MEDIA}}','media/'+src)
+open(dest,'w').write(t+'\n\n'+open(f'{m}/sortie.md').read())" "$MOTEUR/inspirations" "$source" "$note" "$R/$id/CLAUDE.md" "$type"
+    echo "$R/$id" ;;
+
+  mesurer)
+    D="$C/inspirations/${1:?inspiration}"
+    py -c "import json,sys;f=sys.argv[1];i=json.load(open(f));i['etat']='analyse';i.pop('erreur',None);json.dump(i,open(f,'w'),indent=2,ensure_ascii=False)" "$D/inspiration.json"
+    "$MOTEUR/inspirations/mesurer.sh" "$D" ;;
+
+  inspiration-finie)
+    D="$C/inspirations/${1:?inspiration}"
+    py -c "
+import json,sys
+f,r=sys.argv[1],json.load(open(sys.argv[2]))
+i=json.load(open(f))
+i.update(etat='analysee',style=r.get('style'),resume=r.get('resume'),regles=r.get('regles',[]),analyseLe=sys.argv[3])
+if i['type']=='lien' and r.get('titre'): i['titre']=r['titre']
+i.pop('erreur',None)
+json.dump(i,open(f,'w'),indent=2,ensure_ascii=False)
+print(f\"{len(i['regles'])} règles apprises : {i['titre']}\")" "$D/inspiration.json" "$D/regles.json" "$(maintenant)" ;;
+
+  style-preparer)
+    S="$C/style"; mkdir -p "$S" "$C/bibliotheque/polices"
+    cp "$MOTEUR/inspirations/synthese.md" "$S/CLAUDE.md"
+    : > "$S/inspirations.txt"
+    for f in "$C"/inspirations/*/inspiration.json; do [ -f "$f" ] || continue
+      py -c "import json,sys;i=json.load(open(sys.argv[1]));i['etat']=='analysee' and print(f\"../inspirations/{i['id']}/  ({i['type']}) {i['titre']}\")" "$f" >> "$S/inspirations.txt"; done
+    [ -s "$S/inspirations.txt" ] || { echo "Aucune inspiration analysée."; exit 1; }
+    echo "$S"; cat "$S/inspirations.txt" ;;
+
+  style-fini)
+    S="$C/style"; [ -f "$S/style.md" ] || { echo "style.md manquant"; exit 1; }
+    py -c "
+import json,sys,os,glob
+f=sys.argv[1]; s=json.load(open(f))
+ids=[]
+for p in glob.glob(os.path.join(sys.argv[2],'inspirations','*','inspiration.json')):
+    i=json.load(open(p))
+    if i['etat']=='analysee': ids.append(i['id'])
+s.update(majLe=sys.argv[3],sources=ids)
+json.dump(s,open(f,'w'),indent=2,ensure_ascii=False)
+print('Style enregistré :', s.get('nom'))" "$S/style.json" "$C" "$(maintenant)" ;;
+
+  projet)
+    titre="${1:?titre}"; genre="${2:?genre}"; format="${3:?format}"; shift 3
+    [ $# -gt 0 ] || { echo "Ajoute au moins un rush."; exit 1; }
+    R="$C/projets"; mkdir -p "$R"; id="$(libre "$(slug "$titre" 48)" video "$R")"
+    mkdir -p "$R/$id/rushs" "$R/$id/montage"
+    for r in "$@"; do [ -f "$r" ] || { echo "Rush introuvable : $r"; exit 1; }; cp "$r" "$R/$id/rushs/"; done
+    py -c "import json,sys;t=sys.argv[5];json.dump(dict(id=sys.argv[2],titre=sys.argv[6],format=sys.argv[4],genre=sys.argv[3],consignes='',creeLe=t,majLe=t,statut='pret'),open(sys.argv[1],'w'),indent=2,ensure_ascii=False)" \
+      "$R/$id/projet.json" "$id" "$genre" "$format" "$(maintenant)" "$titre"
+    echo "$id" ;;
+
+  preparer)
+    id="${1:?projet}"; P="$C/projets/$id"; M="$P/montage"; [ -f "$P/projet.json" ] || { echo "Vidéo introuvable : $id"; exit 1; }
+    present studio || { echo "Le moteur d'animation n'est pas installé : ./cliplex installer"; exit 1; }
+    [ -n "$2" ] && py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p['consignes']=sys.argv[2];json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$P/projet.json" "$2"
+    rushs=(); for r in "$P"/rushs/*; do [[ "$(echo "$r" | tr '[:upper:]' '[:lower:]')" =~ \.(mp4|mov|m4v|webm|mkv)$ ]] && rushs+=("$r"); done
+    empreinte="$(for r in "${rushs[@]}"; do basename "$r"; done | paste -sd '|' -)"
+    if [ -f "$M/transcript.txt" ] && [ "$(cat "$M/.rushs" 2>/dev/null)" == "$empreinte" ]; then echo "Rushs déjà préparés."
+    else "$MOTEUR/outils/preparer.sh" "$M" "${rushs[@]}" && echo "$empreinte" > "$M/.rushs"; fi
+    cp -R "$MOTEUR/studio/src" "$O/studio/" && cp "$MOTEUR/studio/remotion.config.ts" "$O/studio/"
+    cp "$MOTEUR/claude/instructions.md" "$M/CLAUDE.md"; mkdir -p "$M/assets"
+    # Style de la personne : style.md + ses réponses aux questions (prioritaires), comme dans l'app.
+    avec=$(py -c "import json,sys;print(json.load(open(sys.argv[1])).get('avecStyle',True) is not False)" "$P/projet.json")
+    if [ "$avec" == "True" ] && [ -f "$C/style/style.md" ]; then
+      py -c "
+import json,sys
+md=open(sys.argv[1]).read()
+try: s=json.load(open(sys.argv[2]))
+except Exception: s={}
+rep=[q for q in s.get('questions',[]) if q.get('reponse')]
+if rep: md+='\n\n## Choix de la personne (prioritaires)\n'+'\n'.join(f\"- {q['question']} {q['reponse']}\" for q in rep)+'\n'
+open(sys.argv[3],'w').write(md)
+json.dump(s.get('theme',{}),open(sys.argv[4],'w'),indent=2)" "$C/style/style.md" "$C/style/style.json" "$M/style.md" "$M/theme.json"
+      style=1
+    else rm -f "$M/style.md" "$M/theme.json"; style=0; fi
+    py -c "
+import json,sys
+p=json.load(open(sys.argv[1])); style=sys.argv[2]=='1'
+F={'9x16':(1080,1920),'16x9':(1920,1080),'1x1':(1080,1080),'4x5':(1080,1350)}
+G={'formation':'Formation (règles « Formation » de CLAUDE.md)','youtube':'Vidéo YouTube (règles « YouTube »)','court':'Vidéo courte : Shorts, Reels, TikTok (règles « Court »)','pub':'Publicité (règles « Pub »)'}
+l,h=F[p['format']]
+print('\n'.join([f\"Titre : {p['titre']}\",f\"Genre : {G[p.get('genre','formation')]}\",f\"Format de sortie : {p['format'].replace('x',':')} ({l}x{h}). Mets \\\"format\\\": {{\\\"largeur\\\": {l}, \\\"hauteur\\\": {h}}} dans le plan.\",
+ 'Style de la personne : style.md (à appliquer en priorité sur les règles générales).' if style else 'Style de la personne : aucun pour cette vidéo. Reste sobre (règles générales).',
+ '','Consignes de la personne :',p.get('consignes','').strip() or '(aucune consigne particulière : applique les règles de montage)']))" "$P/projet.json" "$style" > "$M/consignes.txt"
+    printf '#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "%s" "$(dirname "$0")" --brouillon\n' "$MOTEUR/outils/rendre.sh" > "$M/rendre-brouillon.sh"; chmod +x "$M/rendre-brouillon.sh"
+    py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p.update(statut='montage',etape='claude',majLe=sys.argv[2]);p.pop('erreur',None);json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$P/projet.json" "$(maintenant)"
+    echo "$M" ;;
+
+  brouillon)
+    id="${1:?projet}"; P="$C/projets/$id"; M="$P/montage"
+    # Claude rend lui-même ses brouillons : on ne refait le rendu que si le plan a changé depuis.
+    B="$M/montage_brouillon.mp4"
+    if [ ! -f "$B" ] || [ "$M/plan.json" -nt "$B" ]; then "$MOTEUR/outils/rendre.sh" "$M" --brouillon; fi
+    py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p.update(statut='a-valider',brouillon='montage/montage_brouillon.mp4',majLe=sys.argv[2]);p.pop('etape',None);json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$P/projet.json" "$(maintenant)"
+    [ -z "$CLIPLEX_SANS_OUVRIR" ] && open "$M/montage_brouillon.mp4" || true
+    echo "$M/montage_brouillon.mp4" ;;
+
+  exporter)
+    id="${1:?projet}"; q="${2:-4k}"; P="$C/projets/$id"; M="$P/montage"
+    # Une version déjà exportée n'est jamais écrasée.
+    [ -f "$M/montage.mp4" ] && mv "$M/montage.mp4" "$M/montage-$(date +%Y%m%d%H%M).mp4"
+    if [ "$q" == "4k" ]; then ECHELLE=2 "$MOTEUR/outils/rendre.sh" "$M"; else "$MOTEUR/outils/rendre.sh" "$M"; fi
+    py -c "import json,sys;f=sys.argv[1];p=json.load(open(f));p.update(statut='monte',video='montage/montage.mp4',qualite=sys.argv[3],majLe=sys.argv[2]);p.pop('etape',None);json.dump(p,open(f,'w'),indent=2,ensure_ascii=False)" "$P/projet.json" "$(maintenant)" "$q"
+    [ -z "$CLIPLEX_SANS_OUVRIR" ] && open -R "$M/montage.mp4" || true
+    echo "$M/montage.mp4" ;;
+
+  *) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

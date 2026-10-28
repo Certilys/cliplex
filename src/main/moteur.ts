@@ -1,8 +1,8 @@
 import { app } from 'electron'
 import { spawn } from 'child_process'
-import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
+import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { Activite, EtapeMontage, Genre, Projet } from '../shared/types'
+import type { Activite, EtapeMontage, Genre, Projet, Qualite } from '../shared/types'
 import { lecteurClaude } from './activite'
 import { env } from './environnement'
 import { styleDuMontage } from './inspirations'
@@ -40,9 +40,9 @@ function variables(): NodeJS.ProcessEnv {
 }
 
 /** Lance une commande et transmet chaque ligne ; rend le code de sortie. */
-function executer(cmd: string, args: string[], cwd: string, ligne: (t: string) => void, id: string): Promise<number> {
+function executer(cmd: string, args: string[], cwd: string, ligne: (t: string) => void, id: string, extra: NodeJS.ProcessEnv = {}): Promise<number> {
   return new Promise((resolve) => {
-    const p = spawn(cmd, args, { cwd, env: variables(), stdio: ['ignore', 'pipe', 'pipe'] })
+    const p = spawn(cmd, args, { cwd, env: { ...variables(), ...extra }, stdio: ['ignore', 'pipe', 'pipe'] })
     enCours.set(id, () => p.kill('SIGTERM'))
     let reste = ''
     const lire = (b: Buffer) => {
@@ -83,32 +83,69 @@ function consignes(p: Projet, avecStyle: boolean): string {
   ].join('\n')
 }
 
-export async function lancerMontage(id: string, envoyer: Journal): Promise<Projet> {
-  if (enCours.has(id)) throw new Error('Un montage est déjà en cours pour cette vidéo.')
-  const dossier = dossierProjet(id)
-  const montage = join(dossier, 'montage')
+const OUTILS_CLAUDE = 'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash(./rendre-brouillon.sh:*),Bash(ls:*),Bash(mkdir:*),Bash(curl:*),Bash(ffmpeg:*),Bash(ffprobe:*)'
+const BROUILLON = 'montage_brouillon.mp4'
+
+/** Journal d'un montage : à l'écran et dans montage/journal.txt (utile pour comprendre un échec). */
+function journalDe(id: string, envoyer: Journal, titre: string) {
+  const montage = join(dossierProjet(id), 'montage')
   mkdirSync(montage, { recursive: true })
-  // Chaque montage garde son journal complet (montage/journal.txt), utile pour comprendre un échec.
-  writeFileSync(join(montage, 'journal.txt'), `Montage du ${new Date().toLocaleString('fr-FR')}\n`)
+  appendFileSync(join(montage, 'journal.txt'), `\n${titre} du ${new Date().toLocaleString('fr-FR')}\n`)
   const journal: Journal = (etape, a) => {
     appendFileSync(join(montage, 'journal.txt'), `[${etape}] ${a.texte}\n`)
     envoyer(etape, a)
   }
-  const info = (etape: EtapeMontage, texte: string, icone?: string) => journal(etape, { genre: 'info', texte, icone })
-  const technique = (etape: EtapeMontage) => (texte: string) => journal(etape, { genre: 'technique', texte })
+  const echec = (etape: EtapeMontage, message: string, statut: Projet['statut'] = 'pret'): Projet => {
+    enCours.delete(id)
+    journal(etape, { genre: 'erreur', texte: message })
+    return modifierProjet(id, { statut, etape: undefined, erreur: message })
+  }
+  return { montage, journal, echec, info: (etape: EtapeMontage, texte: string, icone?: string) => journal(etape, { genre: 'info', texte, icone }) }
+}
+
+/**
+ * Claude écrit (ou retouche) le plan et rend des brouillons pour se vérifier.
+ * Le montage s'arrête ensuite sur un brouillon à valider : rien n'est exporté sans l'accord de la personne.
+ */
+async function passeClaude(id: string, prompt: string, continuer: boolean, j: ReturnType<typeof journalDe>): Promise<Projet> {
+  const { montage, journal, echec, info } = j
+  modifierProjet(id, { statut: 'montage', etape: 'claude', erreur: undefined })
+  const lecteur = lecteurClaude((a) => journal('claude', a))
+  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', OUTILS_CLAUDE]
+  // Une retouche reprend la conversation du montage : Claude se souvient de ce qu'il a fait.
+  if (continuer) args.unshift('--continue')
+  const code = await executer('claude', args, montage, lecteur.ligne, id)
+  if (code !== 0 || lecteur.etat.resultat !== 'success' || !existsSync(join(montage, 'plan.json'))) return echec('claude', 'Claude Code n’a pas terminé le montage.', continuer ? 'a-valider' : 'pret')
+
+  // Brouillon à jour pour la validation (Claude en a normalement déjà rendu un après sa dernière correction).
+  const brouillon = join(montage, BROUILLON)
+  const plan = join(montage, 'plan.json')
+  if (!existsSync(brouillon) || statSync(brouillon).mtimeMs < statSync(plan).mtimeMs) {
+    modifierProjet(id, { etape: 'validation' })
+    info('validation', 'Rendu du brouillon à regarder.', 'lecture')
+    const r = await executer(join(dossierMoteur(), 'outils', 'rendre.sh'), [montage, '--brouillon'], montage, (t) => journal('validation', { genre: 'technique', texte: t }), id)
+    if (r !== 0 || !existsSync(brouillon)) return echec('validation', 'Le brouillon n’a pas pu être rendu.', continuer ? 'a-valider' : 'pret')
+  }
+  enCours.delete(id)
+  journal('validation', { genre: 'succes', texte: 'Brouillon prêt : regarde-le, puis valide ou demande une retouche.' })
+  return modifierProjet(id, { statut: 'a-valider', etape: undefined, brouillon: `montage/${BROUILLON}` })
+}
+
+export async function lancerMontage(id: string, envoyer: Journal): Promise<Projet> {
+  if (enCours.has(id)) throw new Error('Un montage est déjà en cours pour cette vidéo.')
+  const dossier = dossierProjet(id)
+  const j = journalDe(id, envoyer, 'Montage')
+  const { montage, info, echec } = j
+  writeFileSync(join(montage, 'journal.txt'), `Montage du ${new Date().toLocaleString('fr-FR')}\n`)
+  const technique = (etape: EtapeMontage) => (texte: string) => j.journal(etape, { genre: 'technique', texte })
   const rushs = readdirSync(join(dossier, 'rushs'))
     .filter((f) => /\.(mp4|mov|m4v|webm|mkv)$/i.test(f))
     .sort()
     .map((f) => join(dossier, 'rushs', f))
   if (!rushs.length) throw new Error('Ajoute au moins un rush.')
   const moteur = dossierMoteur()
+  enCours.set(id, () => {})
   let p = modifierProjet(id, { statut: 'montage', etape: 'preparation', erreur: undefined })
-
-  const echec = (etape: EtapeMontage, message: string): Projet => {
-    enCours.delete(id)
-    journal(etape, { genre: 'erreur', texte: message })
-    return modifierProjet(id, { statut: 'pret', etape: undefined, erreur: message })
-  }
 
   try {
     // 1. Préparation : voix nettoyée, transcription mot à mot, planches. Refaite seulement si les rushs ont changé.
@@ -144,38 +181,44 @@ export async function lancerMontage(id: string, envoyer: Journal): Promise<Proje
     mkdirSync(join(montage, 'assets'), { recursive: true })
     writeFileSync(join(montage, 'consignes.txt'), consignes(p, Boolean(style)))
     writeFileSync(join(montage, 'rendre-brouillon.sh'), `#!/bin/bash\n# Rend un brouillon (demi-résolution) pour vérifier le plan.\nexec "${join(moteur, 'outils', 'rendre.sh')}" "$(dirname "$0")" --brouillon\n`, { mode: 0o755 })
+    rmSync(join(montage, BROUILLON), { force: true })
     info('claude', 'Claude lit ton rush et écrit le montage.', 'agent')
-    const lecteur = lecteurClaude((a) => journal('claude', a))
-    const code = await executer(
-      'claude',
-      [
-        '-p',
-        'Monte cette vidéo en suivant CLAUDE.md, consignes.txt et style.md s’il existe. Pour rendre un brouillon, lance ./rendre-brouillon.sh. Termine par resume.md.',
-        '--output-format',
-        'stream-json',
-        '--verbose',
-        '--allowedTools',
-        'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash(./rendre-brouillon.sh:*),Bash(ls:*),Bash(mkdir:*),Bash(curl:*),Bash(ffmpeg:*),Bash(ffprobe:*)'
-      ],
-      montage,
-      lecteur.ligne,
-      id
-    )
-    if (code !== 0 || lecteur.etat.resultat !== 'success' || !existsSync(join(montage, 'plan.json'))) return echec('claude', 'Claude Code n’a pas terminé le montage.')
-
-    // 3. Rendu final en pleine qualité.
-    p = modifierProjet(id, { etape: 'rendu' })
-    info('rendu', 'Rendu final en pleine qualité.', 'lecture')
-    const rendu = await executer(join(moteur, 'outils', 'rendre.sh'), [montage], montage, technique('rendu'), id)
-    // Le format vient du plan (consignes.txt) : la sortie s'appelle toujours montage.mp4.
-    const video = 'montage.mp4'
-    if (rendu !== 0 || !existsSync(join(montage, video))) return echec('rendu', 'Le rendu final a échoué.')
-    enCours.delete(id)
-    journal('fini', { genre: 'succes', texte: 'Vidéo prête.' })
-    return modifierProjet(id, { statut: 'monte', etape: undefined, video: `montage/${video}` })
+    return await passeClaude(id, 'Monte cette vidéo en suivant CLAUDE.md, consignes.txt et style.md s’il existe. Pour rendre un brouillon, lance ./rendre-brouillon.sh. Termine par resume.md.', false, j)
   } catch (e) {
     return echec('preparation', e instanceof Error ? e.message : String(e))
   }
+}
+
+/** Retouche demandée après avoir regardé le brouillon : Claude reprend sa conversation et corrige le plan. */
+export async function retoucherMontage(id: string, demande: string, envoyer: Journal): Promise<Projet> {
+  if (enCours.has(id)) throw new Error('Un montage est déjà en cours pour cette vidéo.')
+  if (!demande.trim()) throw new Error('Dis ce qu’il faut changer.')
+  const j = journalDe(id, envoyer, 'Retouche')
+  enCours.set(id, () => {})
+  j.info('claude', `Ta demande : ${demande.trim()}`, 'crayon')
+  return passeClaude(
+    id,
+    `La personne a regardé le brouillon et demande cette retouche : « ${demande.trim()} ». Corrige plan.json en suivant CLAUDE.md, rends un nouveau brouillon avec ./rendre-brouillon.sh et vérifie-le, puis mets resume.md à jour.`,
+    true,
+    j
+  )
+}
+
+/** Export final après validation : 1080p (ou la taille du format) ou 4K (rendu deux fois plus grand). */
+export async function exporterMontage(id: string, qualite: Qualite, envoyer: Journal): Promise<Projet> {
+  if (enCours.has(id)) throw new Error('Un montage est déjà en cours pour cette vidéo.')
+  const { montage, journal, echec, info } = journalDe(id, envoyer, 'Export')
+  enCours.set(id, () => {})
+  modifierProjet(id, { statut: 'montage', etape: 'rendu', erreur: undefined, qualite })
+  // Une version déjà exportée n'est jamais écrasée : elle est gardée sous un nom daté.
+  const video = join(montage, 'montage.mp4')
+  if (existsSync(video)) renameSync(video, join(montage, `montage-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}.mp4`))
+  info('rendu', qualite === '4k' ? 'Export en 4K, en pleine qualité.' : 'Export en pleine qualité.', 'lecture')
+  const rendu = await executer(join(dossierMoteur(), 'outils', 'rendre.sh'), [montage], montage, (t) => journal('rendu', { genre: 'technique', texte: t }), id, qualite === '4k' ? { ECHELLE: '2' } : {})
+  if (rendu !== 0 || !existsSync(video)) return echec('rendu', 'L’export a échoué.', 'a-valider')
+  enCours.delete(id)
+  journal('fini', { genre: 'succes', texte: 'Vidéo prête.' })
+  return modifierProjet(id, { statut: 'monte', etape: undefined, video: 'montage/montage.mp4' })
 }
 
 export function arreterMontage(id: string): void {
