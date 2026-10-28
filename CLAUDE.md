@@ -11,7 +11,7 @@ Dans le doute, demande-lui en une phrase.
 
 ## Studio
 
-Tout passe par `./cliplex` (lance-le sans argument pour l'aide). Il fait exactement ce que fait l'app, avec les mêmes fichiers : une personne peut passer de l'un à l'autre.
+Tout passe par `./cliplex` (`./cliplex aide` pour la liste des commandes). Il fait exactement ce que fait l'app, avec les mêmes fichiers : une personne peut passer de l'un à l'autre.
 
 Si elle demande comment ça marche, explique-le avec `docs/comment-ca-marche.md` (en quelques phrases, pas tout le document).
 

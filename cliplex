@@ -2,7 +2,8 @@
 # Cliplex sans l'app : les mêmes étapes, les mêmes fichiers, depuis le Terminal ou Claude Code.
 # Le dossier Cliplex est partagé avec l'app : ce qui est fait ici s'y retrouve, et inversement.
 #
-#   ./cliplex etat                              ce qui est prêt, ce qui manque
+#   ./cliplex etat                              ce qui est prêt, ce qui manque (par défaut)
+#   ./cliplex aide                              cette aide
 #   ./cliplex installer [outil]                 installe les outils manquants dans <Cliplex>/outils
 #   ./cliplex inspiration <fichier|lien> [note] ajoute une inspiration (vidéo, image ou lien)
 #   ./cliplex mesurer <inspiration>             mesures d'une vidéo d'inspiration (planches, coupes, transcription)
@@ -297,5 +298,6 @@ print('\n'.join([f\"Titre : {p['titre']}\",f\"Genre : {G[p.get('genre','formatio
     [ -z "$CLIPLEX_SANS_OUVRIR" ] && open -R "$M/montage.mp4" || true
     echo "$M/montage.mp4" ;;
 
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  aide|help|-h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) echo "Commande inconnue : $cmd"; echo; sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

@@ -2,7 +2,7 @@
 
 **Tu tournes, ta vidéo est montée.**
 
-Cliplex est un studio vidéo qui tourne sur ton ordinateur. Tu prépares ton idée, tu tournes avec le prompteur, tu déposes ton rush, et l'IA fait le montage : sous-titres mot à mot, animations, sons, musique. Pour les Shorts, Reels et TikTok, les vidéos YouTube et les formations.
+Cliplex est un studio vidéo qui tourne sur ton ordinateur. Tu déposes ton rush, et Claude fait le montage dans ton style : coupes, chapitres, encarts, captures d'écran, zooms, sous-titres, transitions, effets sonores, et tout le motion design que tu lui décris. Pour les formations, les vidéos YouTube, les Shorts, Reels et TikTok.
 
 Gratuit et open source. Tu branches simplement ton propre compte Claude.
 
@@ -34,11 +34,13 @@ Version 0.1, en développement actif. macOS d'abord, Windows et Linux ensuite.
 | Inspirations (vidéos, images, liens YouTube) et style appris | Fait |
 | Idées, scripts et planning | À venir |
 | Prompteur sur téléphone, décor de tournage | À venir |
-| Banque de sons libres de droits | À venir |
+| Effets sonores libres (kit Cliplex, posés automatiquement) | Fait |
+| Animations sur mesure écrites par Claude pour chaque vidéo | Fait |
+| Musiques libres de droits | À venir |
 
 ## Utiliser avec Claude Code, sans l'app
 
-Tu peux aussi tout faire depuis Claude Code, sans lancer l'app :
+Tu peux aussi tout faire depuis Claude Code, sans lancer l'app. Il te faut un Mac et Claude Code avec un abonnement Claude Pro ou Max ; le reste s'installe tout seul.
 
 ```bash
 git clone https://github.com/mariusdjen/cliplex.git
@@ -48,9 +50,11 @@ claude
 
 Dis bonjour, ou tape `/setup`. Claude t'explique ce qu'il faut, installe les outils (avec ton accord), te demande tes vidéos d'inspiration (fichiers ou liens YouTube), en tire ton style, puis monte tes vidéos. Tu regardes un brouillon, tu demandes des retouches, et rien n'est exporté (en 4K ou en 1080p) avant que tu le valides.
 
+Tu peux tout demander pour ton montage : une ouverture animée, des transitions, des effets sonores plus marqués, ton logo, l'ambiance d'une vidéo que tu aimes. Ce que le moteur ne sait pas encore faire, Claude l'écrit pour ta vidéo. Plus tu décris précisément, plus le résultat te ressemble.
+
 Le détail de chaque étape : [docs/comment-ca-marche.md](docs/comment-ca-marche.md).
 
-Tout va dans le dossier `espace/` du dépôt (ou dans celui de l'app si tu l'utilises aussi : ce sont les mêmes fichiers). Le script `./cliplex` fait chaque étape ; lance-le sans argument pour voir ses commandes.
+Tout va dans le dossier `espace/` du dépôt (ou dans celui de l'app si tu l'utilises aussi : ce sont les mêmes fichiers). Le script `./cliplex` fait chaque étape : `./cliplex aide` liste ses commandes, `./cliplex etat` montre ce qui est prêt.
 
 ## Installer pour développer
 
@@ -82,4 +86,4 @@ Les contributions sont les bienvenues : voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
 [Apache 2.0](LICENSE). Le nom et le logo Cliplex ne sont pas couverts par la licence du code.
 
-Le moteur d'animation s'appuiera sur [Remotion](https://www.remotion.dev), gratuit pour les particuliers et les petites structures ; les entreprises de plus de trois personnes ont besoin d'une licence Remotion.
+Le moteur d'animation s'appuie sur [Remotion](https://www.remotion.dev), gratuit pour les particuliers et les petites structures ; les entreprises de plus de trois personnes ont besoin d'une licence Remotion.

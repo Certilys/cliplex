@@ -42,6 +42,26 @@ export const Montage: React.FC<{ timeline: any }> = ({ timeline: T }) => {
   usePolicesLocales(T.polices);
   const cam = effetCamera(T.transitions, frame, width);
   const e = T.etalonnage ?? {};
+  // Passe du son (rendre.sh) : seulement les pistes audio, aucune image à dessiner, bien plus rapide.
+  if (T.audioSeul) {
+    return (
+      <AbsoluteFill>
+        {T.clips.map((c: any, k: number) => (
+          <Sequence key={k} from={c.de} durationInFrames={c.duree}>
+            <Clip clip={c} zooms={T.zooms} audioSeul />
+          </Sequence>
+        ))}
+        {T.musique && (
+          <Audio src={staticFile(T.musique.src)} loop startFrom={Math.round((T.musique.debut ?? 0) * T.fps)} volume={(f) => vols[f] ?? 0} />
+        )}
+        {T.sons.map((s: any, k: number) => (
+          <Sequence key={`s${k}`} from={s.de} durationInFrames={Math.round(T.fps * 4)}>
+            <Audio src={staticFile(s.src)} volume={s.volume} />
+          </Sequence>
+        ))}
+      </AbsoluteFill>
+    );
+  }
   const filtre = `contrast(${e.contraste ?? 1.04}) saturate(${e.saturation ?? 1.06}) brightness(${e.luminosite ?? 1}) sepia(${e.chaleur ?? 0}) hue-rotate(${e.teinte ?? 0}deg)`;
 
   return (

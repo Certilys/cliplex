@@ -78,7 +78,9 @@ for ((a=0; a<N; a+=PAS)); do
   echo "file '$f'" >> "$M/_morceaux/liste.txt"; echo "Images $((b+1)) / $N"
 done
 # son en une fois (rapide) puis assemblage sans réencodage de l'image
-for essai in 1 2 3; do SANS_CRF=1 surveiller "${RENDU[@]}" "$M/_morceaux/son.wav" --codec=wav; [ -f "$M/_morceaux/son.wav" ] && break; done
+"$PY" -c "import json,sys;d=json.load(open(sys.argv[1]));T=d.get('timeline',d);T['audioSeul']=True;json.dump({'timeline':T},open(sys.argv[2],'w'))" "$TL" "$M/_morceaux/son.json"
+SON=("${RENDU[@]}"); SON[5]="--props=$M/_morceaux/son.json"
+for essai in 1 2 3; do SANS_CRF=1 surveiller "${SON[@]}" "$M/_morceaux/son.wav" --codec=wav; [ -f "$M/_morceaux/son.wav" ] && break; done
 ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i "$M/_morceaux/liste.txt" -i "$M/_morceaux/son.wav" -map 0:v -map 1:a -c:v copy -c:a pcm_s16le "$M/_brut.mov"
 [ -f "$M/_brut.mov" ] || { echo "ÉCHEC DU RENDU (assemblage)"; exit 1; }
 ffmpeg -hide_banner -loglevel error -y -i "$M/_brut.mov" -c:v copy -c:a aac -b:a 320k "$M/_brut.mp4" && rm -rf "$M/_brut.mov" "$M/_morceaux"
